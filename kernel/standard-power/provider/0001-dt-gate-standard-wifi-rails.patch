@@ -1,0 +1,23 @@
+--- a/drivers/regulator/axp20x-regulator.c
++++ b/drivers/regulator/axp20x-regulator.c
+@@ -1594,6 +1594,9 @@
+ 	const char *dcdc5_name = axp22x_regulators[AXP22X_DCDC5].name;
+ 	const char *aldo1_name = axp15060_regulators[AXP15060_ALDO1].name;
+ 	bool drivevbus = false;
++	bool standard_wifi_power_sequence = of_property_read_bool(
++		pdev->dev.parent->of_node,
++		"photoframe,standard-wifi-power-sequence");
+ 
+ 	switch (axp20x->variant) {
+ 	case AXP202_ID:
+@@ -1720,7 +1723,9 @@
+ 		if (axp20x->variant == AXP223_ID &&
+ 		    of_device_is_compatible(pdev->dev.parent->of_node,
+ 					    "pf1007l,axp223-active") &&
+-		    (i == AXP22X_DLDO1 || i == AXP22X_DLDO2 || i == AXP22X_LDO_IO1)) {
++		    (i == AXP22X_LDO_IO1 ||
++		     (!standard_wifi_power_sequence &&
++		      (i == AXP22X_DLDO1 || i == AXP22X_DLDO2)))) {
+ 			struct regulator_ops *ops;
+ 
+ 			new_desc = devm_kmemdup(&pdev->dev, desc, sizeof(*desc), GFP_KERNEL);

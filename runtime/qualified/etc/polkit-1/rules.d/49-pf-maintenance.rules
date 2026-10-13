@@ -1,0 +1,7 @@
+polkit.addRule(function(action, subject) {
+    if (subject.user === "diag" &&
+        action.id === "org.freedesktop.policykit.exec" &&
+        action.lookup("program") === "/usr/local/sbin/pf-maintenance") {
+        return polkit.Result.YES;
+    }
+});

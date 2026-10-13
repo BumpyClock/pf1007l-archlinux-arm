@@ -1,0 +1,45 @@
+{
+  "status": "CROSS_BUILT_HELP_RUN_NOT_HARDWARE_TESTED",
+  "upstream": "https://gitlab.freedesktop.org/mesa/kmscube",
+  "commit": "f60e50e887d3c49e91ac9b06d8199b36152632fa",
+  "archive": "gpu-test/kmscube-upstream.tar",
+  "archive_sha256": "608240df61512f9423a63731b4eaff981ab6ba830364a4c90b63ddf57eb59833",
+  "binary": "diagnostics/upstream-power-sequence/gpu-build/kmscube.armv7h",
+  "binary_sha256": "a22bf869acfd80f0483e0360aecb571871d1ae969ed8d56ea5815ea2abad0abb",
+  "binary_bytes": 1508900,
+  "sources": {
+    "common.c": "4c3f936e1eeec473bb1d96fac114d5920782765295ea2acde883b2e58ffc60ee",
+    "cube-smooth.c": "bfed7c31fe9417ce55ebe241232b9d34d916f20f1f479275a73261e4a1963c24",
+    "cube-gears.c": "be3d7f30f198a4efd395651f6f9701d6d3aa299874a927f19261fdd42c566ffd",
+    "cube-tex.c": "a337ebe60c5d87b3164c9f677e9a66de8cc96c7dcd33be82bf996493635f0a66",
+    "drm-atomic.c": "7de8c44047fea3d580b2a8ae55c6662ecf7f186c39bd4fb25641ce0886c8b8ba",
+    "drm-common.c": "9e004f7f9e8f3e07946ff560cc12958bb070c546ba88f86b96ab3578616bec9a",
+    "drm-legacy.c": "7fe2848c0f112b2f4054638bc6efc598636fcc4fe13b7003784a311b21071f30",
+    "drm-offscreen.c": "f3ef9fd779c5c21b958094235eb647528345dc22d7e0283b0bd0d112aa48c044",
+    "esTransform.c": "e70939c0d650ec0e97174687001403254e521af75f1899423a0b0a4a27d0e893",
+    "frame-512x512-NV12.c": "c978f4ca0cc3b146b342a741ee3710353392e2496ab310cc62ade25ab5d12c60",
+    "frame-512x512-RGBA.c": "9a01ec16c2fff71078d9b954b1c65e03f3be6260cc5ac12b0d86f2eae69157fb",
+    "kmscube.c": "b9375c7d35df0c528e5891f1c47dd4a69315649f71c4bb360dfd5280fc99c2b1",
+    "perfcntrs.c": "aab3436b91d4a563e30034c0cd832aad6d27b105f82bf4f0000d637e67bcdc17"
+  },
+  "compiler": "arm-linux-gnueabihf-gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+  "sysroot": "External Arch Linux ARM sysroot supplied to the build recipe",
+  "runtime_libraries": [
+    "libgbm.so.1",
+    "libdrm.so.2",
+    "libEGL.so.1",
+    "libGLESv2.so.2",
+    "libm.so.6",
+    "libc.so.6"
+  ],
+  "optional_features": {
+    "GLES3": false,
+    "libpng": false,
+    "GStreamer": false
+  },
+  "suggested_command": "timeout -k 5 90 ./kmscube.armv7h -D /dev/dri/card1 -M smooth -f RG16 -v 800x1280 -N -c 1800",
+  "display_state_restored_by_upstream": false,
+  "hardware_tested": false,
+  "two_buffer_command": "timeout -k 5 90 ./kmscube.armv7h -D /dev/dri/card1 -M smooth -f RG16 -v 800x1280 -x -m 0 -N -c 1800",
+  "build_command_note": "See the portable build-kmscube.py recipe for exact compiler arguments."
+}

@@ -1,0 +1,234 @@
+#!/usr/bin/bash
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
+umask 077
+
+SD=/run/pf-sd
+TRANSFER=/home/diag/pf-update
+STATE=/var/lib/pf-maintenance
+SYS=/sys
+PROC=/proc
+PAYLOADS=(zImage initramfs.cpio.gz sun8i-a33-pf1007l-stage1.dtb boot-control.scr)
+
+fail() { printf 'pf-maintenance: %s\n' "$*" >&2; return 1; }
+
+profile_id() {
+    [[ $1 =~ ^arch-usb-[a-z0-9][a-z0-9-]{0,39}$ ]] || fail 'invalid profile ID'
+}
+
+require_sd() {
+    local source disk
+    [[ $(findmnt -n -o TARGET -T "$SD") == "$SD" ]] || fail 'SD mount missing'
+    [[ $(findmnt -n -o FSTYPE -T "$SD") == vfat ]] || fail 'SD filesystem differs'
+    [[ $(findmnt -n -o LABEL -T "$SD") == A33BACKUP ]] || fail 'SD label differs'
+    source=$(findmnt -n -o SOURCE -T "$SD")
+    [[ $source =~ ^/dev/(mmcblk[0-9]+)p1$ ]] || fail 'SD device differs'
+    disk=${BASH_REMATCH[1]}
+    [[ $(cat "/sys/class/block/$disk/device/type") == SD ]] || fail 'device is not an SD card'
+    [[ $(cat "/sys/class/block/$disk/size") == 60532736 ]] || fail 'SD size differs'
+    [[ $(cat "/sys/class/block/${disk}p1/start") == 8192 ]] || fail 'partition offset differs'
+    [[ -f $SD/linux-sd/logging.marker && ! -L $SD/linux-sd ]] || fail 'frame SD marker missing'
+}
+
+check_bundle() {
+    local directory=$1 line name expected actual limit size
+    local -A seen=()
+    [[ -d $directory && ! -L $directory ]] || fail 'bundle is not a directory'
+    [[ $(realpath -e -- "$directory") == "$directory" ]] || fail 'bundle path contains symlinks'
+    [[ -f $directory/SHA256SUMS && ! -L $directory/SHA256SUMS ]] || fail 'missing checksum manifest'
+    [[ $(stat -c %s "$directory/SHA256SUMS") -le 1024 ]] || fail 'checksum manifest oversized'
+    while IFS= read -r line || [[ -n $line ]]; do
+        [[ $line =~ ^([0-9a-f]{64})\ \ (zImage|initramfs.cpio.gz|sun8i-a33-pf1007l-stage1.dtb|boot-control.scr)$ ]] || fail 'invalid checksum manifest'
+        expected=${BASH_REMATCH[1]}; name=${BASH_REMATCH[2]}
+        [[ ! ${seen[$name]+present} ]] || fail 'duplicate payload'
+        seen[$name]=1
+        [[ -f $directory/$name && ! -L $directory/$name ]] || fail "invalid payload: $name"
+        case $name in
+            zImage|initramfs.cpio.gz) limit=16777216 ;;
+            sun8i-a33-pf1007l-stage1.dtb) limit=65536 ;;
+            boot-control.scr) limit=16384 ;;
+        esac
+        size=$(stat -c %s -- "$directory/$name")
+        [[ $size -gt 0 && $size -le $limit ]] || fail "payload size differs: $name"
+        actual=$(sha256sum -- "$directory/$name"); actual=${actual%% *}
+        [[ $actual == "$expected" ]] || fail "checksum mismatch: $name"
+    done < "$directory/SHA256SUMS"
+    [[ ${#seen[@]} == 4 ]] || fail 'bundle requires all four payloads'
+    [[ $(find "$directory" -mindepth 1 -maxdepth 1 -printf x | wc -c) == 5 ]] || fail 'unexpected bundle entry'
+}
+
+install_profile() {
+    local source=$1 id=$2 staging name
+    profile_id "$id"
+    [[ $source == "$TRANSFER" || $source == "$TRANSFER/"* ]] || fail 'transfer must be inside /home/diag/pf-update'
+    check_bundle "$source"
+    require_sd
+    [[ ! -e $SD/$id && ! -L $SD/$id ]] || fail 'profile already exists; use a new ID'
+    staging=$(mktemp -d "$SD/.pf-upload-XXXXXXXX")
+    # Incomplete transfers remain unselected; the fixed dispatcher never reads these names.
+    for name in "${PAYLOADS[@]}" SHA256SUMS; do
+        cp -- "$source/$name" "$staging/$name"
+        sync -f "$staging/$name"
+    done
+    check_bundle "$staging"
+    cmp -- "$source/SHA256SUMS" "$staging/SHA256SUMS"
+    sync -f "$staging"
+    mv -T -- "$staging" "$SD/$id"
+    sync -f "$SD"
+    printf 'Installed and verified %s; boot selection unchanged.\n' "$id"
+}
+
+status() {
+    local target
+    uname -a
+    for target in / "$SD" /run/pf-arch/state; do
+        findmnt -n -o TARGET,SOURCE,FSTYPE,OPTIONS -T "$target" || true
+    done
+    printf 'USB state: '
+    cat /sys/class/udc/*/state 2>/dev/null || true
+    printf 'Boot ID: '
+    cat /proc/sys/kernel/random/boot_id
+    printf 'Command line: '
+    cat /proc/cmdline
+    if [[ -d $STATE ]]; then
+        find "$STATE" -maxdepth 1 -type f -printf '%f\n'
+    fi
+}
+
+collectlogs() {
+    status
+    printf '\n--- kernel ---\n'
+    timeout 15 dmesg || true
+    printf '\n--- journal ---\n'
+    timeout 20 journalctl -b -n 600 --no-pager || true
+    printf '\n--- saved initramfs log ---\n'
+    if [[ -f $SD/linux-sd/logs/linux-last.txt ]]; then
+        tail -c 131072 "$SD/linux-sd/logs/linux-last.txt"
+    fi
+}
+
+trial_state() {
+    local value=$1 expected
+    [[ -d $SD/boot-maint && ! -L $SD/boot-maint ]] || fail 'dispatcher directory missing'
+    [[ -f $SD/boot-maint/trial-state.bin && ! -L $SD/boot-maint/trial-state.bin ]] || fail 'dispatcher state missing'
+    [[ $(stat -c %s "$SD/boot-maint/trial-state.bin") == 1 ]] || fail 'dispatcher state size differs'
+    case $value in
+        disarm) printf '\x00' ;; arm) printf '\xa5' ;; *) fail 'invalid state'; return 1 ;;
+    esac | dd of="$SD/boot-maint/trial-state.bin" bs=1 count=1 conv=notrunc status=none
+    sync -f "$SD/boot-maint/trial-state.bin"
+    expected=00; [[ $value != arm ]] || expected=a5
+    [[ $(od -An -tx1 "$SD/boot-maint/trial-state.bin" | tr -d ' \n') == "$expected" ]] || fail 'dispatcher state readback failed'
+}
+
+select_profile() {
+    local id=$1 build=$2 checksum bytes temporary
+    profile_id "$id"
+    [[ $build =~ ^working-control-[0-9a-f]{16}$ ]] || fail 'invalid build ID'
+    require_sd
+    check_bundle "$SD/$id"
+    checksum=$(sha256sum "$SD/$id/boot-control.scr"); checksum=${checksum%% *}
+    bytes=$(stat -c %s "$SD/$id/boot-control.scr")
+    [[ $bytes -gt 64 && $bytes -le 16384 ]] || fail 'boot script size differs'
+    trial_state disarm
+    temporary=$(mktemp "$SD/boot-maint/.trial-env-XXXXXXXX")
+    printf 'pf_trial_dir=%s\npf_trial_build=%s\npf_trial_script_sha=%s\npf_trial_script_size=%x\n' \
+        "$id" "$build" "$checksum" "$bytes" > "$temporary"
+    sync -f "$temporary"
+    [[ ! -L $SD/boot-maint/trial.env ]] || fail 'trial descriptor is a symlink'
+    mv -T -- "$temporary" "$SD/boot-maint/trial.env"
+    sync -f "$SD/boot-maint"
+    trial_state arm
+    printf 'Selected %s (%s); next boot is a recoverable trial.\n' "$id" "$build"
+}
+
+read_trial() {
+    local line key value
+    local -A fields=()
+    [[ -f $SD/boot-maint/trial.env && ! -L $SD/boot-maint/trial.env ]] || fail 'trial descriptor missing'
+    [[ $(stat -c %s "$SD/boot-maint/trial.env") -le 512 ]] || fail 'trial descriptor oversized'
+    while IFS= read -r line || [[ -n $line ]]; do
+        [[ $line == *=* ]] || fail 'invalid trial descriptor'
+        key=${line%%=*}; value=${line#*=}
+        [[ ! ${fields[$key]+present} ]] || fail 'duplicate trial field'
+        case $key in
+            pf_trial_dir) profile_id "$value" ;;
+            pf_trial_build) [[ $value =~ ^working-control-[0-9a-f]{16}$ ]] || fail 'invalid trial build' ;;
+            pf_trial_script_sha) [[ $value =~ ^[0-9a-f]{64}$ ]] || fail 'invalid trial hash' ;;
+            pf_trial_script_size) [[ $value =~ ^[0-9a-f]{1,5}$ ]] || fail 'invalid trial size' ;;
+            *) fail 'unexpected trial field'; return 1 ;;
+        esac
+        fields[$key]=$value
+    done < "$SD/boot-maint/trial.env"
+    [[ ${#fields[@]} == 4 ]] || fail 'incomplete trial descriptor'
+    TRIAL_BUILD=${fields[pf_trial_build]}
+}
+
+usb_ready() {
+    local state
+    for state in "$SYS"/class/udc/*/state; do
+        [[ -f $state ]] && [[ $(cat "$state") == configured ]] && return 0
+    done
+    return 1
+}
+
+require_persistence() {
+    [[ $(findmnt -n -o FSTYPE -T /) == overlay ]] || fail 'root is not the persistent overlay'
+    [[ $(findmnt -n -o TARGET -T /run/pf-arch/state) == /run/pf-arch/state ]] || fail 'persistent mount missing'
+    [[ $(findmnt -n -o FSTYPE -T /run/pf-arch/state) == ext4 ]] || fail 'persistent filesystem differs'
+}
+
+acknowledge() {
+    local boot_id receipt embedded deadline=$((SECONDS + 30))
+    while ! usb_ready; do
+        (( SECONDS < deadline )) || fail 'USB did not become configured; trial remains disarmed'
+        sleep 1
+    done
+    require_sd
+    require_persistence
+    read_trial
+    boot_id=$(cat "$PROC/sys/kernel/random/boot_id")
+    receipt=$(tr -d '\000' < "$SD/linux-sd/logs/linux-last.txt")
+    [[ $(printf '%s\n' "$receipt" | grep -c '^boot_id=') == 1 ]] || fail 'ambiguous Linux boot ID'
+    printf '%s\n' "$receipt" | grep -Fxq "boot_id=$boot_id" || fail 'Linux receipt is stale'
+    [[ $(printf '%s\n' "$receipt" | grep -c '^uboot_receipt_begin$') == 1 &&
+       $(printf '%s\n' "$receipt" | grep -c '^uboot_receipt_end$') == 1 ]] || fail 'incomplete U-Boot receipt'
+    embedded=$(printf '%s\n' "$receipt" | sed -n '/^uboot_receipt_begin$/,/^uboot_receipt_end$/p')
+    [[ $(printf '%s\n' "$embedded" | grep -c '^pf_boot_role=') == 1 &&
+       $(printf '%s\n' "$embedded" | grep -c '^build=') == 1 ]] || fail 'ambiguous U-Boot receipt'
+    printf '%s\n' "$embedded" | grep -Fxq 'pf_boot_role=candidate' || fail 'recovery boot cannot acknowledge a candidate'
+    printf '%s\n' "$embedded" | grep -Fxq "build=$TRIAL_BUILD" || fail 'booted build differs from selected trial'
+    [[ ! -L $STATE ]] || fail 'maintenance state is a symlink'
+    mkdir -p "$STATE"
+    printf 'boot_id=%s\nbuild=%s\n' "$boot_id" "$TRIAL_BUILD" > "$STATE/healthy"
+    sync -f "$STATE/healthy"
+    trial_state arm
+    printf 'Acknowledged healthy USB boot %s (%s).\n' "$boot_id" "$TRIAL_BUILD"
+}
+
+main() {
+    [[ $(id -u) == 0 ]] || fail 'run through pkexec'
+    case ${1:-help} in
+        status) [[ $# == 1 ]] || return 2; status ;;
+        collectlogs) [[ $# == 1 ]] || return 2; collectlogs ;;
+        shell)
+            shift
+            cd /root
+            exec env -i HOME=/root USER=root LOGNAME=root PATH="$PATH" TERM=vt100 /usr/bin/bash --noprofile --norc "$@"
+            ;;
+        install|select|ack)
+            if [[ $1 == ack ]]; then [[ $# == 1 ]] || return 2; else [[ $# == 3 ]] || return 2; fi
+            exec 9>/run/lock/pf-maintenance.lock
+            flock -w 5 9 || fail 'another maintenance action is running'
+            case $1 in
+                install) install_profile "$2" "$3" ;;
+                select) select_profile "$2" "$3" ;;
+                ack) acknowledge ;;
+            esac
+            ;;
+        *) printf 'Usage: pf-maintenance status|collectlogs|shell [bash arguments]|install /home/diag/pf-update/BUNDLE arch-usb-ID|select arch-usb-ID working-control-BUILD|ack\n'; return 2 ;;
+    esac
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    main "$@"
+fi

@@ -1,0 +1,13 @@
+[Unit]
+Description=Initialize local Arch Linux ARM package signing keys
+ConditionPathExists=/var/lib/pf-firstboot/complete
+ConditionPathExists=!/var/lib/pf-firstboot/pacman-keyring-ready
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pf-init-keyring
+TimeoutStartSec=180
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

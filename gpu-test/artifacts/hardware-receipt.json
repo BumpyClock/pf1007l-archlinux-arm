@@ -1,0 +1,35 @@
+{
+  "status": "HARDWARE_GLES2_RENDERING_VERIFIED",
+  "renderer": "Mali400",
+  "gl_version": "OpenGL ES 2.0 Mesa 26.2.4-arch1.1",
+  "display_size": "800x1280",
+  "color_format": "RGB565",
+  "kmscube": {
+    "frames": 599,
+    "seconds": 10.184544,
+    "fps": 58.814609,
+    "color_buffers": 2,
+    "upstream_commit": "f60e50e887d3c49e91ac9b06d8199b36152632fa"
+  },
+  "glmark2": {
+    "package": "2023.01-2",
+    "gouraud_fps": 59,
+    "phong_fps": 32,
+    "complete_default_suite": false,
+    "swap_mode": "fifo"
+  },
+  "refresh_rate_can_limit_fps": true,
+  "shader_pixel_check_passed": true,
+  "recording_brightness_percent": 100,
+  "brightness_restored_percent": 65,
+  "persistent_default_brightness_percent": 65,
+  "demo_enabled_at_boot": false,
+  "short_suite_after_reboot": {
+    "build_no_vbo_fps": 57,
+    "build_vbo_fps": 59,
+    "linear_texture_fps": 59,
+    "gouraud_fps": 59,
+    "phong_fps": 33,
+    "complete_default_suite": false
+  }
+}

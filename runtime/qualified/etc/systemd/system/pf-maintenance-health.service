@@ -1,0 +1,13 @@
+[Unit]
+Description=Acknowledge a booted USB maintenance trial
+After=local-fs.target
+ConditionPathExists=/run/pf-sd/boot-maint/trial.env
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/timeout -k 2 45 /usr/local/sbin/pf-maintenance ack
+TimeoutStopSec=3
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

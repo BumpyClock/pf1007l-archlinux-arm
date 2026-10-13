@@ -1,0 +1,29 @@
+diff --git a/cmd/gettime.c b/cmd/gettime.c
+--- a/cmd/gettime.c
++++ b/cmd/gettime.c
+@@ -14,5 +14,6 @@
+  */
+ #include <command.h>
++#include <env.h>
+ #include <time.h>
+ 
+ static int do_gettime(struct cmd_tbl *cmdtp, int flag, int argc,
+@@ -21,6 +22,9 @@ static int do_gettime(struct cmd_tbl *cmdtp, int flag, int argc,
+ {
+ 	unsigned long int val = get_timer(0);
+ 
++	if (argc == 2)
++		return env_set_hex(argv[1], val);
++
+ #ifdef CONFIG_SYS_HZ
+ 	printf("Timer val: %lu\n", val);
+ 	printf("Seconds : %lu\n", val / CONFIG_SYS_HZ);
+@@ -38,6 +42,6 @@ static int do_gettime(struct cmd_tbl *cmdtp, int flag, int argc,
+ 
+ U_BOOT_CMD(
+-	gettime,	1,	1,	do_gettime,
++	gettime,	2,	1,	do_gettime,
+ 	"get timer val elapsed",
+-	"get time elapsed from uboot start"
++	"[variable] - get ticks since boot; optionally store in an environment variable"
+ );

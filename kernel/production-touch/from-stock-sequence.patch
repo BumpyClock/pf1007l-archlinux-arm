@@ -1,0 +1,101 @@
+--- stock-sequence.c
++++ silead.c
+@@ -330,7 +330,10 @@
+ 	buffer[0] = reg;
+ 	memcpy(buffer + 1, data, len);
+ 	ret = i2c_master_send(client, buffer, len + 1);
+-	dev_info(&client->dev, "PF stockseq write reg=%02x first=%02x len=%u rc=%d\n",
++	if (ret != len + 1)
++		dev_err(&client->dev, "PF touchscreen control reg=%02x len=%u rc=%d\n",
++			reg, len, ret);
++	dev_dbg(&client->dev, "PF touchscreen write reg=%02x first=%02x len=%u rc=%d\n",
+ 		 reg, data[0], len, ret);
+ 	return ret == len + 1 ? 0 : ret < 0 ? ret : -EIO;
+ }
+@@ -344,12 +347,13 @@
+ 
+ 	for (attempt = 1; attempt <= 2; attempt++) {
+ 		ret = i2c_transfer(client->adapter, &message, 1);
+-		dev_info(&client->dev, "PF stockseq detect byte=00 attempt=%d rc=%d\n",
++		dev_dbg(&client->dev, "PF touchscreen detect byte=00 attempt=%d rc=%d\n",
+ 			 attempt, ret);
+ 		if (ret == 1)
+ 			return 0;
+ 		msleep(50);
+ 	}
++	dev_err(&client->dev, "PF touchscreen detect failed after 2 attempts rc=%d\n", ret);
+ 	return ret < 0 ? ret : -EIO;
+ }
+ 
+@@ -466,11 +470,11 @@
+ 						       4,
+ 						       (u8 *)&fw_data[i].val);
+ 		if (error) {
+-			dev_err(dev, "PF stockseq firmware record=%u reg=%02x rc=%d\n", i, fw_data[i].offset, error);
++			dev_err(dev, "PF touchscreen firmware record=%u reg=%02x rc=%d\n", i, fw_data[i].offset, error);
+ 			break;
+ 		}
+ 		if (!(i % 256) || i + 1 == fw_size)
+-			dev_info(dev, "PF stockseq firmware progress=%u/%u rc=0\n", i + 1, fw_size);
++			dev_dbg(dev, "PF touchscreen firmware progress=%u/%u rc=0\n", i + 1, fw_size);
+ 	}
+ 
+ 	release_firmware(fw);
+@@ -515,7 +519,7 @@
+ 	int ret;
+ 	u32 status;
+ 
+-	dev_info(&client->dev, "PF stockseq: PH1 already high before LDO enable; adapter clock unchanged by touch module\n");
++	dev_dbg(&client->dev, "PF touchscreen: PH1 already high before LDO enable; adapter clock unchanged by touch module\n");
+ 	msleep(20);
+ 	gpiod_set_value_cansleep(data->gpio_power, 1);
+ 	msleep(5);
+@@ -526,7 +530,7 @@
+ 	msleep(25);
+ 	silead_ts_set_power(client, SILEAD_POWER_OFF);
+ 	silead_ts_set_power(client, SILEAD_POWER_ON);
+-	dev_info(&client->dev, "PF stockseq: detect completed; PH1 low55/high35; control init, no ID read\n");
++	dev_dbg(&client->dev, "PF touchscreen: detect completed; PH1 low55/high35; control init, no ID read\n");
+ 	ret = silead_ts_init(client);
+ 	if (ret)
+ 		return ret;
+@@ -546,9 +550,12 @@
+ 	if (ret)
+ 		return ret;
+ 	status = silead_ts_get_status(client);
+-	dev_info(&client->dev, "PF stockseq status=%08x expected=%08x\n", status, SILEAD_STATUS_OK);
+-	if (status != SILEAD_STATUS_OK)
++	if (status != SILEAD_STATUS_OK) {
++		dev_err(&client->dev, "PF touchscreen initialization status=%08x expected=%08x\n",
++			status, SILEAD_STATUS_OK);
+ 		return -ENODEV;
++	}
++	dev_info(&client->dev, "PF touchscreen firmware ready status=%08x\n", status);
+ 	return silead_ts_get_id(client);
+ }
+ 
+@@ -704,7 +711,7 @@
+ 		return dev_err_probe(dev, PTR_ERR(data->gpio_power),
+ 				     "Shutdown GPIO request failed\n");
+ 
+-	dev_info(dev, "PF stockseq: PH1 high; enabling qualified 3300000 uV supply\n");
++	dev_dbg(dev, "PF touchscreen: PH1 high; enabling qualified 3300000 uV supply\n");
+ 
+ 	/*
+ 	 * Enable regulators at probe and disable them at remove, we need
+@@ -811,7 +818,7 @@
+ 	.probe = silead_ts_probe,
+ 	.id_table = silead_ts_id,
+ 	.driver = {
+-		.name = "pf1007l_silead_stockseq",
++		.name = SILEAD_TS_NAME,
+ 		.of_match_table = of_match_ptr(silead_ts_of_match),
+ 		.pm = pm_sleep_ptr(&silead_ts_pm),
+ 	},
+@@ -819,5 +826,5 @@
+ module_i2c_driver(silead_ts_driver);
+ 
+ MODULE_AUTHOR("Robert Dolca <robert.dolca@intel.com>");
+-MODULE_DESCRIPTION("PF1007L Android control-sequence diagnostic");
++MODULE_DESCRIPTION("PF1007L Silead touchscreen with qualified stock startup");
+ MODULE_LICENSE("GPL");

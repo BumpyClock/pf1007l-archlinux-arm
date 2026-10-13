@@ -1,0 +1,38 @@
+{
+  "result": "SIGNED_PACKAGE_REPAIR_COMPLETE",
+  "source_modified": false,
+  "packages": [
+    {
+      "package": "glmark2",
+      "version": "2023.01-2",
+      "architecture": "armv7h",
+      "archive_sha256": "f16ff3c8068d85917c3f327f9605f58704e0ca277be9a5c9604bb241d44c91dc",
+      "signature_sha256": "07233f61daf4df510b2d5cd248f75b10f90a0b1804e8654ac78d43ed70e35ec0",
+      "signature_verified": true,
+      "signer": "68B3537F39A313B3E574D06777193F152BDBE6A6",
+      "complete_package_payload_replaced": true
+    },
+    {
+      "package": "libjpeg-turbo",
+      "version": "3.2.0-2",
+      "architecture": "armv7h",
+      "archive_sha256": "e42dc3cb610ecad7cfe9d1cb6e80cfcda17fedc8a206e3a0afa98c4c8983a8d2",
+      "signature_sha256": "e77a58dba9bf606d8723126d4a402e630f03291f7caa240bc0a4e4bc3768516e",
+      "signature_verified": true,
+      "signer": "68B3537F39A313B3E574D06777193F152BDBE6A6",
+      "complete_package_payload_replaced": true
+    },
+    {
+      "package": "tpm2-tss",
+      "version": "4.2.0-2",
+      "architecture": "armv7h",
+      "archive_sha256": "40accdf106423fb3dd11bb7d726ee45c58ea2927b4a4205533858f68ad17ab3b",
+      "signature_sha256": "2309d9d12d8721e80043c4c48f145e4acb80a31ffb70c3b820b1dee3520d9525",
+      "signature_verified": true,
+      "signer": "68B3537F39A313B3E574D06777193F152BDBE6A6",
+      "complete_package_payload_replaced": true
+    }
+  ],
+  "device_modified": false,
+  "cause_of_original_content_error": "UNPROVEN"
+}

@@ -1,0 +1,42 @@
+diff --git a/drivers/mmc/sunxi_mmc.c b/drivers/mmc/sunxi_mmc.c
+--- a/drivers/mmc/sunxi_mmc.c
++++ b/drivers/mmc/sunxi_mmc.c
+@@ -354,3 +354,8 @@ static int sunxi_mmc_send_cmd_common(struct sunxi_mmc_priv *priv,
+ 	unsigned int bytecnt = 0;
+ 
++	if (data && (data->flags & MMC_DATA_WRITE) &&
++	    ((ulong)priv->reg != SUNXI_MMC0_BASE || !IS_SD(mmc)))
++		return -EPERM;
++	if (cmd->cmdidx == MMC_CMD_ERASE)
++		return -EPERM;
+ 	if (priv->fatal_err)
+@@ -563,9 +568,16 @@ static const struct mmc_ops sunxi_mmc_ops = {
+ struct mmc *sunxi_mmc_init(int sdc_no)
+ {
+-	void *ccm = (void *)SUNXI_CCM_BASE;
+-	struct sunxi_mmc_priv *priv = &mmc_host[sdc_no];
+-	struct mmc_config *cfg = &priv->cfg;
++	void *ccm;
++	struct sunxi_mmc_priv *priv;
++	struct mmc_config *cfg;
+ 	int ret;
+ 
++	if (sdc_no != 0)
++		return NULL;
++
++	ccm = (void *)SUNXI_CCM_BASE;
++	priv = &mmc_host[sdc_no];
++	cfg = &priv->cfg;
++
+ 	memset(priv, '\0', sizeof(struct sunxi_mmc_priv));
+ 
+@@ -684,6 +696,9 @@ static int sunxi_mmc_probe(struct udevice *dev)
+ 	u32 *ccu_reg;
+ 	int ret;
+ 
++	if (dev_read_addr(dev) != SUNXI_MMC0_BASE)
++		return -ENODEV;
++
+ 	cfg->name = dev->name;
+ 
+ 	cfg->voltages = MMC_VDD_32_33 | MMC_VDD_33_34;

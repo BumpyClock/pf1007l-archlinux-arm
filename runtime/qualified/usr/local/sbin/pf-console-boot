@@ -1,0 +1,310 @@
+#!/usr/bin/bash
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
+umask 077
+
+PF_STATE=/var/lib/pf-console-boot
+PF_LOG=/var/log/pf-console-boot
+PF_SD=/run/pf-sd
+PF_SYS=/sys
+PF_PROC=/proc
+PF_PERSIST=/run/pf-arch/state
+PF_KERNEL=7.2.10-pf-console-r1
+PF_LOCK=/run/lock/pf-peripheral-stage.lock
+PF_DISPLAY_RECEIPT=/run/pf-display-console/ready.json
+
+pf_fail() { printf 'pf-console-boot: %s\n' "$*" >&2; return 1; }
+pf_boot_id() { cat "$PF_PROC/sys/kernel/random/boot_id"; }
+
+pf_snapshot() {
+    local path property
+    for path in "$PF_SYS"/class/regulator/regulator.*; do
+        [[ -d $path ]] || continue
+        printf '%s' "${path##*/}"
+        for property in name state microvolts; do
+            [[ ! -r $path/$property ]] || printf ' %s=%s' "$property" "$(cat "$path/$property")"
+        done
+        printf '\n'
+    done
+    for path in "$PF_SYS"/class/drm/*/status "$PF_SYS"/class/drm/*/enabled \
+                "$PF_SYS"/class/graphics/fb*/virtual_size "$PF_SYS"/class/net/*/operstate; do
+        [[ ! -r $path ]] || printf '%s=%s\n' "$path" "$(cat "$path")"
+    done
+    if [[ -f $PF_DISPLAY_RECEIPT ]]; then cat "$PF_DISPLAY_RECEIPT"; fi
+}
+
+pf_checkpoint() {
+    local label=$1 temporary="$PF_LOG/checkpoint.new" history="$PF_LOG/history-$(pf_boot_id).txt"
+    printf '%s %s\n' "$(date -u +%FT%TZ)" "$label" >> "$history" || return 1
+    {
+        printf 'boot_id=%s\nlabel=%s\nkernel=%s\n' "$(pf_boot_id)" "$label" "$(uname -r)"
+        printf 'pending='; cat "$PF_STATE/pending" 2>/dev/null || printf 'none\n'
+        cat "$history"
+        pf_snapshot
+        printf '\n--- kernel ---\n'
+        dmesg --color=never
+    } > "$temporary" || return 1
+    sync -f "$temporary" || return 1
+    mv -f "$temporary" "$PF_LOG/last.txt" || return 1
+    sync -f "$PF_LOG" || return 1
+    cp "$PF_LOG/last.txt" "$PF_SD/linux-sd/logs/console-boot-last.txt.new" || return 1
+    sync -f "$PF_SD/linux-sd/logs/console-boot-last.txt.new" || return 1
+    mv -f "$PF_SD/linux-sd/logs/console-boot-last.txt.new" "$PF_SD/linux-sd/logs/console-boot-last.txt" || return 1
+    sync -f "$PF_SD/linux-sd/logs" || return 1
+}
+
+pf_pending() {
+    printf 'boot_id=%s action=%s\n' "$(pf_boot_id)" "$1" > "$PF_STATE/pending.new" || return 1
+    sync -f "$PF_STATE/pending.new" || return 1
+    mv -f "$PF_STATE/pending.new" "$PF_STATE/pending" || return 1
+    sync -f "$PF_STATE" || return 1
+    pf_checkpoint "before-$1"
+}
+
+pf_finished() {
+    pf_checkpoint "$1" || return 1
+    rm -- "$PF_STATE/pending" || return 1
+    sync -f "$PF_STATE" || return 1
+}
+
+pf_action() {
+    local label=$1 seconds=$2 result=0
+    shift 2
+    pf_pending "$label" || return 1
+    timeout -k 2 "$seconds" "$@" || result=$?
+    if (( result == 0 )); then
+        pf_finished "after-$label"
+    elif (( result == 124 || result == 137 )); then
+        pf_checkpoint "interrupted-$label-rc$result" || return 1
+        return 1
+    else
+        pf_finished "failed-$label-rc$result" || return 1
+        return 1
+    fi
+}
+
+pf_load() { pf_action "load-$1" 20 modprobe "$1"; }
+
+pf_regulator() {
+    local name=$1 voltage=$2 path
+    for path in "$PF_SYS"/class/regulator/regulator.*; do
+        [[ -r $path/name && $(cat "$path/name") == "$name" ]] || continue
+        [[ -r $path/state && -r $path/microvolts && $(cat "$path/state") == enabled &&
+           $(cat "$path/microvolts") == "$voltage" ]] && return 0
+    done
+    return 1
+}
+
+pf_switch_enabled() {
+    local path
+    for path in "$PF_SYS"/class/regulator/regulator.*; do
+        [[ -r $path/name && $(cat "$path/name") == dc1sw ]] || continue
+        [[ -r $path/state && $(cat "$path/state") == enabled ]] && return 0
+    done
+    return 1
+}
+
+pf_pmic_ready() {
+    # DC1SW has no voltage sysfs attribute; its upstream DCDC1 defines its voltage.
+    pf_regulator dcdc1 3000000 && pf_switch_enabled && pf_regulator pf-panel-eldo3 3300000
+}
+
+pf_display_ready() {
+    [[ -f $PF_DISPLAY_RECEIPT && ! -L $PF_DISPLAY_RECEIPT ]] || return 1
+    timeout -k 1 3 systemctl is-active --quiet pf-display-console.service || return 1
+    grep -Fq '"boot_id":"'"$(pf_boot_id)"'"' "$PF_DISPLAY_RECEIPT" || return 1
+    grep -Fq '"verified":true' "$PF_DISPLAY_RECEIPT" || return 1
+    grep -Fq '"mode":"800x1280"' "$PF_DISPLAY_RECEIPT"
+}
+
+pf_sdio_ready() {
+    local path identity
+    for path in "$PF_SYS"/bus/sdio/devices/*; do
+        [[ -r $path/vendor && -r $path/device ]] || continue
+        identity="$(cat "$path/vendor"):$(cat "$path/device")"
+        case ${identity,,} in 0xc8a1:0xc08d|0x8800:0x0001) return 0 ;; esac
+    done
+    return 1
+}
+
+pf_network_ready() {
+    local path device count=0
+    for path in "$PF_SYS"/class/net/*; do
+        [[ -e $path/phy80211 ]] || continue
+        device=$path/device
+        [[ -r $device/vendor && -r $device/device ]] || continue
+        [[ $(cat "$device/vendor") == 0xc8a1 && $(cat "$device/device") == 0xc08d ]] || continue
+        [[ $(basename "$(readlink -f "$device/driver")") == aicwf_sdio &&
+           $(basename "$(readlink -f "$device/driver/module")") == aic8800_fdrv ]] || continue
+        ((count += 1))
+    done
+    [[ $count == 1 ]]
+}
+
+pf_mmc_rebind_allowed() {
+    local device="$PF_SYS/bus/platform/devices/1c10000.mmc" path
+    [[ ! -e $PF_STATE/pending && ! -L $PF_STATE/pending ]] || return 1
+    [[ ! -f $PF_STATE/mmc1-rebind.boot || $(cat "$PF_STATE/mmc1-rebind.boot") != "$(pf_boot_id)" ]] || return 1
+    [[ $(readlink -f "$device/driver") == "$PF_SYS/bus/platform/drivers/sunxi-mmc" ]] || return 1
+    [[ $(readlink -f "$device/of_node") == "$PF_SYS/firmware/devicetree/base/soc/mmc@1c10000" ]] || return 1
+    [[ $(tr '\0' '\n' < "$device/of_node/compatible") == allwinner,sun7i-a20-mmc ]] || return 1
+    [[ -f $device/of_node/non-removable && -f $device/of_node/no-mmc && -f $device/of_node/no-sd ]] || return 1
+    [[ $(cat "$device/power/runtime_status") == suspended ]] || return 1
+    [[ $(cat "$PF_SYS/class/backlight/display-backlight/brightness") == 0 ]] || return 1
+    for path in "$PF_SYS"/bus/sdio/devices/* "$PF_SYS"/class/net/*/phy80211; do
+        [[ ! -e $path ]] || return 1
+    done
+}
+
+pf_mmc_rebind() {
+    pf_mmc_rebind_allowed || return 1
+    printf '%s\n' "$(pf_boot_id)" > "$PF_STATE/mmc1-rebind.boot" || return 1
+    sync -f "$PF_STATE/mmc1-rebind.boot" || return 1
+    pf_action mmc1-unbind 10 /usr/bin/bash -c '
+        for p in /sys/bus/sdio/devices/* /sys/class/net/*/phy80211; do [[ ! -e $p ]] || exit 1; done
+        [[ $(cat /sys/class/backlight/display-backlight/brightness) == 0 ]] &&
+        printf "1c10000.mmc\n" > /sys/bus/platform/drivers/sunxi-mmc/unbind
+    ' || return 1
+    pf_action mmc1-rebind-delay 3 sleep 1 || return 1
+    pf_action mmc1-bind 15 /usr/bin/bash -c '
+        [[ ! -L /sys/bus/platform/devices/1c10000.mmc/driver ]] &&
+        printf "1c10000.mmc\n" > /sys/bus/platform/drivers/sunxi-mmc/bind
+    ' || return 1
+    pf_wait sdio-after-mmc1-rebind 20 pf_sdio_ready
+}
+
+pf_wait() {
+    local label=$1 predicate=$3 deadline=$((SECONDS + $2))
+    pf_pending "$label" || return 1
+    while ! "$predicate"; do
+        if (( SECONDS >= deadline )); then
+            pf_finished "failed-$label" || return 1
+            return 1
+        fi
+        sleep 1
+    done
+    pf_finished "after-$label"
+}
+
+pf_display() {
+    local module
+    pf_load pwm_sun4i || return 1
+    pf_load pwm_bl || return 1
+    pf_action backlight-dark 5 /usr/bin/bash -c '
+        p=/sys/class/backlight/display-backlight
+        [[ $(cat "$p/max_brightness") == 100 ]] &&
+        printf "0\n" > "$p/brightness" && [[ $(cat "$p/brightness") == 0 ]]
+    ' || return 1
+    for module in phy_sun6i_mipi_dphy panel_yhk_sq9365 \
+                  sun4i_frontend sun4i_backend sun4i_tcon sun6i_drc sun6i_mipi_dsi sun4i_drm; do
+        pf_load "$module" || return 1
+    done
+    pf_action display-console 110 systemctl start pf-display-console.service || return 1
+    pf_wait display-evidence 5 pf_display_ready || return 1
+    pf_action console-login 15 systemctl start getty@tty1.service
+}
+
+pf_wifi() {
+    local module
+    for module in sha256 rfkill cfg80211 pinctrl_axp209 pf1007l_aic_manual_pwrseq; do
+        pf_load "$module" || return 1
+    done
+    if ! pf_wait sdio-enumeration 20 pf_sdio_ready; then
+        pf_mmc_rebind || return 1
+    fi
+    for module in aic8800_bsp aic8800_fdrv; do pf_load "$module" || return 1; done
+    pf_wait wifi-interface 20 pf_network_ready || return 1
+}
+
+pf_network() {
+    pf_action wifi-network 15 systemctl start pf-wifi.service || return 1
+    pf_action wifi-service-evidence 5 systemctl is-active --quiet pf-wifi.service
+}
+
+pf_touch_ready() {
+    local path device input
+    device=$(readlink -f "$PF_SYS/bus/i2c/devices/0-0040") || return 1
+    [[ $(basename "$(readlink -f "$device/driver")") == silead_ts &&
+       $(basename "$(readlink -f "$device/driver/module")") == silead ]] || return 1
+    for path in "$PF_SYS"/class/input/event*; do
+        input=$(readlink -f "$path/device") || continue
+        [[ $input == "$device"/input/input* && -r $input/name && $(cat "$input/name") == silead_ts ]] && return 0
+    done
+    return 1
+}
+
+pf_touch_clock_qualified() {
+    local property="$PF_SYS/firmware/devicetree/base/soc/i2c@1c2ac00/clock-frequency"
+    [[ -f $property && $(od -An -tx1 "$property" | tr -d ' \n') == 00061a80 ]]
+}
+
+pf_touch() {
+    local module
+    pf_touch_clock_qualified || return 1
+    for module in evdev i2c_mv64xxx silead; do pf_load "$module" || return 1; done
+    pf_wait touch-input 10 pf_touch_ready || return 1
+    pf_action touch-capabilities 5 /usr/local/bin/pf-touch-capture --list
+}
+
+pf_preflight() {
+    local source options backing
+    [[ $(uname -r) == "$PF_KERNEL" ]] || { pf_fail "requires kernel $PF_KERNEL"; return 1; }
+    [[ $(findmnt -n -o FSTYPE -T /) == overlay ]] || return 1
+    options=,$(findmnt -rn -o OPTIONS -T /),
+    [[ $options == *",upperdir=$PF_PERSIST/upper,"* ]] || return 1
+    [[ $(findmnt -n -o TARGET -T "$PF_PERSIST") == "$PF_PERSIST" &&
+       $(findmnt -n -o FSTYPE -T "$PF_PERSIST") == ext4 ]] || return 1
+    source=$(findmnt -n -o SOURCE -T "$PF_PERSIST") || return 1
+    [[ $source =~ ^/dev/loop[0-9]+$ ]] || return 1
+    backing=$(cat "$PF_SYS/class/block/${source##*/}/loop/backing_file") || return 1
+    [[ $backing == "$PF_SD/arch-io-r2/persistence.ext4" ]] || return 1
+    [[ $(findmnt -n -o TARGET -T "$PF_SD") == "$PF_SD" &&
+       $(findmnt -n -o FSTYPE -T "$PF_SD") == vfat ]] || return 1
+    [[ -f $PF_SD/linux-sd/logging.marker &&
+       $(cat "$PF_SD/linux-sd/logging.marker") == $'PF1007L_SD_LOG_V1\nstart=8192' ]] || return 1
+    [[ ! -L $PF_STATE && ! -L $PF_LOG ]] || return 1
+    mkdir -p "$PF_STATE" "$PF_LOG" || return 1
+    if [[ -e $PF_STATE/pending || -L $PF_STATE/pending ]]; then
+        pf_checkpoint previous-interrupted-action || return 1
+        pf_fail 'interrupted console boot action requires diagnosis'; return 1
+    fi
+    printf 'writable\n' > "$PF_STATE/write-check" || return 1
+    sync -f "$PF_STATE/write-check"
+}
+
+main() {
+    [[ $# == 0 && $(id -u) == 0 ]] || return 1
+    exec 9>"$PF_LOCK"
+    flock -n 9 || return 1
+    pf_preflight || { pf_fail 'preflight failed; no hardware activated'; return 1; }
+    pf_load axp20x_regulator || return 1
+    pf_load axp20x_rsb || return 1
+    pf_wait pmic-display-rails 20 pf_pmic_ready || return 1
+    local result=0 display_ready=0 wifi_ready=0
+    if pf_display; then
+        display_ready=1
+        pf_checkpoint display-ready-dark || return 1
+    else result=1; fi
+    # A timed-out or interrupted kernel action may still own hardware. Do not overlap it.
+    [[ ! -e $PF_STATE/pending ]] || return 1
+    if pf_wifi; then
+        wifi_ready=1
+        pf_checkpoint wifi-hardware-ready || return 1
+    else result=1; fi
+    [[ ! -e $PF_STATE/pending ]] || return 1
+    if (( display_ready )); then
+        pf_action display-visible 95 /usr/local/sbin/pf-display-console --visible || result=1
+    fi
+    [[ ! -e $PF_STATE/pending ]] || return 1
+    if (( wifi_ready )); then pf_network || result=1; fi
+    [[ ! -e $PF_STATE/pending ]] || return 1
+    # The touch profile qualifies 400 kHz; older profiles leave touch dormant.
+    if pf_touch_clock_qualified; then
+        pf_touch || result=1
+    fi
+    [[ ! -e $PF_STATE/pending ]] || return 1
+    pf_checkpoint "boot-actions-finished-rc$result" || return 1
+    return "$result"
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi

@@ -1,0 +1,48 @@
+#!/usr/bin/bash
+set -euo pipefail
+set +x
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
+umask 077
+[[ $EUID == 0 && -t 0 && -t 1 ]] || exit 2
+[[ ! -L /var/lib/pf-firstboot ]]
+install -d -m 0700 -o root -g root /var/lib/pf-firstboot
+marker=/var/lib/pf-firstboot/complete
+[[ ! -L $marker ]]
+exec 9>/run/pf-firstboot.lock
+flock 9
+[[ ! -f $marker ]] || exit 0
+committed=0
+temporary=
+cleanup() {
+    if (( ! committed )); then
+        usermod -L root || :
+        usermod -L diag || :
+    fi
+    [[ -z $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+trap 'exit 130' HUP INT TERM
+usermod -L root
+usermod -L diag
+printf '\nPF1007L Arch Linux ARM first-time setup\n'
+printf 'Set a root password. Input is hidden.\n'
+passwd root
+printf '\nSet the diag administrator password used for USB updates.\n'
+passwd diag
+for account in root diag; do
+    [[ $(passwd -S "$account" | awk '{print $2}') == P ]]
+done
+temporary=$(mktemp /var/lib/pf-firstboot/.complete-XXXXXXXX)
+printf 'version=1\n' > "$temporary"
+sync -f "$temporary"
+mv -T -- "$temporary" "$marker"
+committed=1
+sync -f /var/lib/pf-firstboot
+systemctl start --no-block pf-init-keyring.service || :
+printf '\nPasswords saved. Future boots require login.\n'
+printf 'Package signing keys initialize in the background.\n'
+read -r -p 'Configure WPA2 Wi-Fi now? [y/N]: ' answer || answer=n
+if [[ $answer == y || $answer == Y ]]; then
+    /usr/local/sbin/pf-network-setup || printf 'Wi-Fi setup failed. Run pf-network-setup after root login to retry.\n'
+fi
+printf '\nSetup complete. Log in as diag for USB updates, or root for administration.\n'

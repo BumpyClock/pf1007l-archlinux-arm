@@ -1,0 +1,70 @@
+{
+  "files": [
+    {
+      "path": "firmware/aic_userconfig_8800dc.txt",
+      "bytes": 1056,
+      "sha256": "536ca60c3494464e74b16a467594d585cfb7500e77918398d6b69a6fe63c3956",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/fmacfw_calib_8800dc_h_u02.bin",
+      "bytes": 40444,
+      "sha256": "03a3218284d8c31016836f4a08a16a4f9098a10358025059ea2e6b7118c628de",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/fmacfw_patch_8800dc_h_u02.bin",
+      "bytes": 17900,
+      "sha256": "f269cd6f4706867501512b470ea50ac19ef4a730a565148e12a0690ae8b96c6b",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/fmacfw_patch_tbl_8800dc_h_u02.bin",
+      "bytes": 528,
+      "sha256": "4f399e888fc70dea746177d86e921acbb72d149d1c19f83cd60f81e1ffffa6af",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/fw_adid_8800dc_u02h.bin",
+      "bytes": 1476,
+      "sha256": "c174ef79fb90146c94dd33d41e904897297b77ee18c136a7b66199282cb3c8fc",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/fw_patch_8800dc_u02h.bin",
+      "bytes": 11760,
+      "sha256": "24a619ff9d09b699f8808cff2d5ae5fef4a4ba144e0675fde7a279562fde2486",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/fw_patch_table_8800dc_u02h.bin",
+      "bytes": 512,
+      "sha256": "f122ae72e879522ac3321ec77d2fd1de4078c0763d4af3c5700873db3480c168",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/regulatory.db",
+      "bytes": 6348,
+      "sha256": "7e236caecd939c8ec98be4870bf30422f28ffef2565a38aaaa2d9ddabd0c2641",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/regulatory.db.p7s",
+      "bytes": 1085,
+      "sha256": "50332f0db09b8bcc719235ec4985c27377f2cc2f42abb7b5dcf951866c5a888a",
+      "included_in_git": false
+    },
+    {
+      "path": "firmware/silead/pf1007l-gsl-m86-hd.fw",
+      "bytes": 36960,
+      "sha256": "e11ffa8a33a56b78f8d2f57925fef1b67ea9a58c264bb5f3a8553ea52b14a9e6",
+      "included_in_git": false
+    },
+    {
+      "path": "kernel-overlay/drivers/gpu/drm/panel/sq9365-private-table.h",
+      "bytes": 8066,
+      "sha256": "d7412abb703bdd7927b610f36f1451c6ceafdf6ad6fc8cc7476d6e8efdf3cc72",
+      "included_in_git": false
+    }
+  ]
+}

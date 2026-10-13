@@ -1,0 +1,42 @@
+#!/usr/bin/bash
+set -euo pipefail
+set +x
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin LC_ALL=C
+umask 077
+[[ $EUID == 0 && -t 0 ]] || { printf 'Run interactively as root.\n' >&2; exit 2; }
+directory=/var/lib/pf-wifi
+target=$directory/wpa_supplicant.conf
+[[ ! -L $directory && ! -L $target ]]
+install -d -m 0700 -o root -g root "$directory"
+exec 9>/run/pf-network-setup.lock
+flock 9
+read -r -p 'SSID (saved privately): ' ssid
+[[ ${#ssid} -ge 1 && ${#ssid} -le 32 && $ssid != *$'\r'* ]]
+read -r -s -p 'WPA2 passphrase (8-63 bytes) or 64-digit hexadecimal PSK: ' passphrase
+printf '\n'
+if [[ $passphrase =~ ^[0-9a-fA-F]{64}$ ]]; then
+    psk=${passphrase,,}
+else
+    [[ ${#passphrase} -ge 8 && ${#passphrase} -le 63 && $passphrase != *$'\r'* ]]
+    psk=$(printf '%s\n' "$passphrase" | wpa_passphrase "$ssid" |
+        sed -n 's/^[[:space:]]*psk=\([0-9a-f]\{64\}\)$/\1/p')
+fi
+unset passphrase
+[[ $psk =~ ^[0-9a-f]{64}$ ]]
+ssid_hex=$(printf '%s' "$ssid" | od -An -v -tx1 | tr -d ' \n')
+temporary=$(mktemp "$directory/.wpa-config-XXXXXXXX")
+trap 'rm -f -- "$temporary"' EXIT
+{
+    printf '%s\n' 'ctrl_interface=DIR=/run/wpa_supplicant GROUP=diag' 'update_config=1' 'ap_scan=1' 'network={'
+    printf '    ssid=%s\n    psk=%s\n' "$ssid_hex" "$psk"
+    printf '%s\n' '    key_mgmt=WPA-PSK' '    proto=RSN' '    pairwise=CCMP' '    group=CCMP' '}'
+} > "$temporary"
+unset psk
+chmod 0600 "$temporary"
+chown root:root "$temporary"
+sync -f "$temporary"
+mv -T -- "$temporary" "$target"
+sync -f "$directory"
+systemctl restart pf-wifi.service
+printf 'Private Wi-Fi configuration replaced; connection starts in the background.\n'
+printf 'Use systemctl status pf-wifi.service pf-wifi-dhcp.service to inspect services.\n'

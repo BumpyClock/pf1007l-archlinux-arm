@@ -1,0 +1,29 @@
+{
+  "audit": "repository privacy review",
+  "status": "complete",
+  "scan_timestamp_utc": "2026-10-13T19:19:11Z",
+  "scope": {
+    "included": "Publishable repository files, including docs, source, firmware publication files, image inputs, compiled artifacts, and supported compressed/archive payloads.",
+    "excluded": [
+      ".git/",
+      "dist/",
+      "out/",
+      "build/",
+      "private/",
+      "**/__pycache__/",
+      "firmware/local/"
+    ],
+    "files_scanned": 305,
+    "archive_members_scanned": 96,
+    "compressed_payloads_scanned": 2,
+    "binary_blobs_scanned": 41
+  },
+  "results": {
+    "confirmed_private_findings": 0,
+    "manual_review_candidates": 32,
+    "review_candidate_categories": {
+      "upstream_build_paths": 32
+    }
+  },
+  "method": "Text, printable binary strings, and supported ZIP/TAR/gzip/bzip2/xz/cpio payloads were checked in memory. Private values are omitted."
+}

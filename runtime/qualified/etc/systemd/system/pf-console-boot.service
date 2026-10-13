@@ -1,0 +1,12 @@
+[Unit]
+Description=Start PF1007L console and Wi-Fi in measured power order
+After=local-fs.target systemd-udevd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/pf-console-boot
+TimeoutStopSec=5
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

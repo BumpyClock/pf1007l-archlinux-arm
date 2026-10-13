@@ -1,0 +1,30 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.conf text eol=lf
+*.rules text eol=lf
+*.service text eol=lf
+*.dts text eol=lf
+*.patch text eol=lf
+*.ps1 text eol=lf
+*.ko binary
+*.bin binary
+*.scr binary
+*.dtb binary
+*.gz binary
+*.xz binary
+*.tar binary
+zImage binary
+SHA256SUMS text eol=lf
+kernel/overlay/** -text
+kernel/config/** -text
+kernel/production-touch/** -text
+kernel/standard-power/provider/axp20x-regulator.c -text
+drivers/aic8800/** -text
+drivers/aic8800-port.patch -text
+hardware/pf1007l-standard-wifi.dts -text
+reference/qualified-overlay/** -text
+image/inputs/** -text
+bootloader/*.patch -text
+bootloader/*.config -text
+bootloader/*.dtsi -text

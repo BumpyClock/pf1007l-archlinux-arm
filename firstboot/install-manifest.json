@@ -1,0 +1,66 @@
+{
+  "files": [
+    {
+      "path": "etc/systemd/system/getty@tty1.service.d/90-pf-firstboot.conf",
+      "mode": "0644",
+      "owner": "root:root",
+      "bytes": 70,
+      "sha256": "f97a73de9cfbdeed57f28b8d54f11bfb7ffcb7fde3ca55337d1a54e41dcc6a4f"
+    },
+    {
+      "path": "etc/systemd/system/pf-init-keyring.service",
+      "mode": "0644",
+      "owner": "root:root",
+      "bytes": 322,
+      "sha256": "225a126a549dce040764fff52bb069687dd3a66d90347fc9daa3402521d7112f"
+    },
+    {
+      "path": "etc/systemd/system/serial-getty@ttyGS0.service.d/90-pf-firstboot.conf",
+      "mode": "0644",
+      "owner": "root:root",
+      "bytes": 72,
+      "sha256": "704e836e8fe1eb5eb3983cd47e5ab946dbfd8060720a509935d2b1688610b2a7"
+    },
+    {
+      "path": "usr/local/sbin/pf-console-login",
+      "mode": "0755",
+      "owner": "root:root",
+      "bytes": 630,
+      "sha256": "d3260a71ada34b1efc2739227fc92d8b104fb0918acecd79de27943157745aaa"
+    },
+    {
+      "path": "usr/local/sbin/pf-firstboot",
+      "mode": "0755",
+      "owner": "root:root",
+      "bytes": 1599,
+      "sha256": "197b391b640edb797372b079147392fdc7f9b18f275ef29058b630253cfa8b02"
+    },
+    {
+      "path": "usr/local/sbin/pf-init-keyring",
+      "mode": "0755",
+      "owner": "root:root",
+      "bytes": 590,
+      "sha256": "d76e530ec3dd6241214ab33aa7e19cb6d549a37cca27fe1942d209e312d4c825"
+    },
+    {
+      "path": "usr/local/sbin/pf-network-setup",
+      "mode": "0755",
+      "owner": "root:root",
+      "bytes": 1709,
+      "sha256": "ae6ad38dc4d9785060b045e1adbeb99d5ad61e079d061307927ada00ef9c34e6"
+    }
+  ],
+  "enable_units": [
+    "pf-init-keyring.service"
+  ],
+  "initial_conditions": {
+    "accounts_locked": [
+      "root",
+      "diag"
+    ],
+    "absent_paths": [
+      "var/lib/pf-firstboot/complete",
+      "var/lib/pf-firstboot/pacman-keyring-ready"
+    ]
+  }
+}

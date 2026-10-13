@@ -1,0 +1,60 @@
+#!/usr/bin/bash
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
+umask 077
+
+pf_grow_partition() {
+    local disk=$1 sectors=$2 fat_sectors=$3 root_start=$4 root_min=$5 signature extra fat root type extent value escaped="" octet n
+    signature=$(od -An -tx1 -j 510 -N 2 "$disk" | tr -d ' \n')
+    [[ $signature == 55aa ]] || return 1
+    extra=$(od -An -tx1 -j 478 -N 32 "$disk" | tr -d ' \n*')
+    [[ $extra =~ ^0+$ ]] || return 1
+    fat=$(od -An -tu4 -j 454 -N 8 "$disk" | xargs)
+    root=$(od -An -tu4 -j 470 -N 8 "$disk" | xargs)
+    type=$(od -An -tu1 -j 450 -N 1 "$disk" | xargs)
+    [[ $fat == "8192 $fat_sectors" && $type == 12 ]] || return 1
+    type=$(od -An -tu1 -j 466 -N 1 "$disk" | xargs)
+    [[ $type == 131 && $root == "$root_start "* ]] || return 1
+    extent=${root##* }
+    [[ $sectors =~ ^[0-9]+$ && $extent =~ ^[0-9]+$ ]] || return 1
+    (( sectors <= 4294967295 && extent >= root_min && root_start + extent <= sectors )) || return 1
+    value=$((sectors - root_start))
+    if (( value != extent )); then
+        for (( n=0; n<4; n++ )); do
+            octet=$(((value >> (n * 8)) & 255))
+            printf -v escaped '%s\\%03o' "$escaped" "$octet"
+        done
+        printf '%b' "$escaped" | dd of="$disk" bs=1 seek=474 count=4 conv=notrunc,fsync status=none
+        [[ $(od -An -tu4 -j 474 -N 4 "$disk" | xargs) == "$value" ]] || return 1
+    fi
+}
+
+main() {
+    [[ $(id -u) == 0 ]] || return 1
+    . /usr/local/lib/pf-direct-root.sh
+    pf_require_direct_root || { echo 'SD root identity rejected; no partition changed.' >&2; return 1; }
+    . /etc/pf-image-layout.sh
+    local root disk sectors actual
+    root=$(findmnt -n -o SOURCE -T /)
+    [[ $root =~ ^/dev/(mmcblk[0-9]+)p2$ ]] || return 1
+    disk=/dev/${BASH_REMATCH[1]}
+    [[ -b $disk ]] || return 1
+    sectors=$(cat "/sys/class/block/${disk##*/}/size")
+    exec 9>/run/lock/pf-grow-root.lock
+    flock -n 9 || return 1
+    pf_grow_partition "$disk" "$sectors" "$PF_FAT_SECTORS" "$PF_ROOT_START" "$PF_ROOT_SECTORS" || return 1
+    partx --update --nr 2 "$disk"
+    actual=$(cat "/sys/class/block/${root##*/}/size")
+    [[ $actual == "$((sectors - PF_ROOT_START))" ]] || {
+        echo 'Kernel partition size is stale; reboot to retry filesystem growth.' >&2; return 1;
+    }
+    resize2fs "$root"
+    mkdir -p /var/lib/pf-firstboot
+    printf 'root-expanded-v1\n' > /var/lib/pf-firstboot/root-expanded.new
+    sync -f /var/lib/pf-firstboot/root-expanded.new
+    mv /var/lib/pf-firstboot/root-expanded.new /var/lib/pf-firstboot/root-expanded
+    sync -f /var/lib/pf-firstboot
+    echo 'PF1007L root filesystem expanded to SD capacity.'
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi

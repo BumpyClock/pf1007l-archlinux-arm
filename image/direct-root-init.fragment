@@ -1,0 +1,30 @@
+root_device="${PF_LOG_DEVICE%p1}p2"
+root_name=${root_device##*/}
+block="$PF_SYS/class/block/$root_name"
+disk="${root_name%p2}"
+[ "$(cat "$PF_SYS/class/block/$disk/device/type" 2>/dev/null)" = SD ] || fail direct-root-not-sd
+[ "$(cat "$block/partition" 2>/dev/null)" = 2 ] || fail direct-root-partition
+[ "$(cat "$block/start" 2>/dev/null)" = "$PF_ROOT_START" ] || fail direct-root-start
+[ "$(cat "$PF_SYS/class/block/${disk}p1/size" 2>/dev/null)" = "$PF_FAT_SECTORS" ] || fail direct-root-boot-size
+extent=$(cat "$block/size") || fail direct-root-size
+capacity=$(cat "$PF_SYS/class/block/$disk/size") || fail direct-root-capacity
+case "$extent:$capacity" in *[!0-9:]*|:*) fail direct-root-numeric ;; esac
+[ -n "$extent" ] && [ -n "$capacity" ] &&
+    [ "$extent" -ge "$PF_ROOT_SECTORS" ] &&
+    [ "$capacity" -ge "$((PF_ROOT_START + extent))" ] || fail direct-root-size
+[ ! -e "$PF_SYS/class/block/${disk}p3" ] && [ ! -e "$PF_SYS/class/block/${disk}p4" ] || fail direct-root-extra-partition
+identity=$(blkid "$root_device") || fail direct-root-identity
+case "$identity" in *'TYPE="ext4"'*) ;; *) fail direct-root-type ;; esac
+case "$identity" in *"UUID=\"$PF_ROOT_UUID\""*) ;; *) fail direct-root-uuid ;; esac
+expected="PF1007L_PUBLIC_ROOT_V1 uuid=$PF_ROOT_UUID"
+[ -f "$PF_MOUNT/linux-sd/direct-root.marker" ] &&
+    [ ! -L "$PF_MOUNT/linux-sd/direct-root.marker" ] &&
+    [ "$(cat "$PF_MOUNT/linux-sd/direct-root.marker")" = "$expected" ] || fail direct-root-layout-marker
+mkdir -p /newroot
+mount -t ext4 -o rw,noatime "$root_device" /newroot || fail direct-root-mount
+[ -f /newroot/etc/pf-direct-root ] && [ ! -L /newroot/etc/pf-direct-root ] &&
+    [ "$(cat /newroot/etc/pf-direct-root)" = "$expected" ] || fail direct-root-root-marker
+for directory in dev proc sys run; do
+    [ -d "/newroot/$directory" ] && [ ! -L "/newroot/$directory" ] || fail direct-root-runtime-directory
+done
+stage direct-root-mounted

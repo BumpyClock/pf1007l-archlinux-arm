@@ -1,0 +1,33 @@
+#!/usr/bin/bash
+
+pf_require_direct_root() {
+    local root_source boot_source disk capacity extent options prefix=${1:-}
+    [[ $(findmnt -n -o TARGET -T /) == / &&
+       $(findmnt -n -o FSTYPE -T /) == ext4 &&
+       $(findmnt -n -o UUID -T /) == @ROOT_UUID@ ]] || return 1
+    options=,$(findmnt -rn -o OPTIONS -T /),
+    [[ $options == *,rw,* ]] || return 1
+    root_source=$(findmnt -n -o SOURCE -T /) || return 1
+    boot_source=$(findmnt -n -o SOURCE -T /run/pf-sd) || return 1
+    [[ $boot_source =~ ^/dev/(mmcblk[0-9]+)p1$ ]] || return 1
+    disk=${BASH_REMATCH[1]}
+    [[ $root_source == "/dev/${disk}p2" &&
+       $(findmnt -n -o TARGET -T /run/pf-sd) == /run/pf-sd &&
+       $(findmnt -n -o FSTYPE -T /run/pf-sd) == vfat &&
+       $(findmnt -n -o LABEL -T /run/pf-sd) == A33BACKUP ]] || return 1
+    [[ $(cat "$prefix/sys/class/block/$disk/device/type") == SD &&
+       $(cat "$prefix/sys/class/block/${disk}p1/start") == 8192 &&
+       $(cat "$prefix/sys/class/block/${disk}p1/size") == @FAT_SECTORS@ &&
+       $(cat "$prefix/sys/class/block/${disk}p2/partition") == 2 &&
+       $(cat "$prefix/sys/class/block/${disk}p2/start") == @ROOT_START@ ]] || return 1
+    capacity=$(cat "$prefix/sys/class/block/$disk/size") || return 1
+    extent=$(cat "$prefix/sys/class/block/${disk}p2/size") || return 1
+    [[ $capacity =~ ^[0-9]+$ && $extent =~ ^[0-9]+$ ]] || return 1
+    (( extent >= @ROOT_SECTORS@ && capacity >= @ROOT_START@ + extent && capacity <= 4294967295 )) || return 1
+    [[ ! -e $prefix/sys/class/block/${disk}p3 && ! -e $prefix/sys/class/block/${disk}p4 ]] || return 1
+    [[ -f $prefix/etc/pf-direct-root && ! -L $prefix/etc/pf-direct-root &&
+       $(cat "$prefix/etc/pf-direct-root") == 'PF1007L_PUBLIC_ROOT_V1 uuid=@ROOT_UUID@' &&
+       -f $prefix/run/pf-sd/linux-sd/direct-root.marker &&
+       ! -L $prefix/run/pf-sd/linux-sd/direct-root.marker &&
+       $(cat "$prefix/run/pf-sd/linux-sd/direct-root.marker") == 'PF1007L_PUBLIC_ROOT_V1 uuid=@ROOT_UUID@' ]] || return 1
+}

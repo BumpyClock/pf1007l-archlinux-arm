@@ -1,0 +1,98 @@
+{
+  "archive": {
+    "version": "7.2.10",
+    "release_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
+    "archive_url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.10.tar.xz",
+    "signature_url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.10.tar.sign",
+    "checksums_url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc",
+    "changelog_url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/ChangeLog-7.2.10",
+    "fingerprints_url": "https://www.kernel.org/signature.html",
+    "archive_sha256": "2feaa70453e91f541be6a5c9078d8168e081af45a3d9718054850538cff2ebf3",
+    "release_signer": "647F28654894E3BD457199BE38DBBDC86092693E",
+    "checksum_signer": "B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1",
+    "initramfs_variant": "boot-observability",
+    "initramfs_bytes": 924365,
+    "initramfs_sha256": "65d1d4d080caebbbaebf994c6bd4a4563e52b2f1db37c47efa834a5f0df9d33b",
+    "baseline_initramfs_sha256": "65edb397935ddeb7dada1777b44a053efb43796b1923c5c622f1d65eddfe7e73",
+    "backing_image_sha256": "e42d4c33898ab679b751ac9c4baccebcd511006dce81a052a0760bfe5484df69",
+    "uboot_bytes": 443104,
+    "uboot_sha256": "13784fc9960ce4de553ca166432b17b78116ecff23e9a8bdeaa09596eb1560a6"
+  },
+  "delta": [
+    {
+      "path": "drivers/gpu/drm/panel/Makefile",
+      "upstream_sha256": "dd9b97f3a44eb5dbfbdc85bfaf80db59200feb21d8187b9a8b80afe0fc78c7a1",
+      "sha256": "3420faf896c96f69da8cb0be660c20285471df6c40f2f364517d35b390ce9848",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/gpu/drm/sun4i/sun6i_mipi_dsi.c",
+      "upstream_sha256": "ef9683e7fe78a977b3c1c60080002cb97f4bb9f05a8041d0f26ca1c89d3db3d5",
+      "sha256": "849d8dc8229caa0402ddfd11c6320f601e8d3c1151528dbb34d71b0191aba98a",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/input/touchscreen/silead.c",
+      "upstream_sha256": "66544a42f0373e5d8cff32a20b8c9a12f59f27d63c4b8ab9ed5c4580b809dfaa",
+      "sha256": "0798319930b1c4805c490ef2e04ab04ee28d4a1feb07d7fa5ae0509607253935",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/mfd/axp20x-rsb.c",
+      "upstream_sha256": "7525114e46f1b635b7eb2c897b7f3b01a4333d53a93e3f69e8bf82cf132eca1f",
+      "sha256": "7f724de1ca82ac9fcf1f44322ed33b5e3198f7e4ba6defee13bacbfb1a10d3f1",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/mfd/axp20x.c",
+      "upstream_sha256": "b495655e586772b4032a53e24e4081b95db7d8b610ad8a59b63fee43154e7a0f",
+      "sha256": "4a79a5433d5d98e00e7ee086a421031c783941bddb7c177ac7980dec9465c47f",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/mmc/host/sunxi-mmc.c",
+      "upstream_sha256": "e549934a4e1e2c7fe97d7206ad7ef04af5e7abe0a300ef2dc9db9586d4c0488e",
+      "sha256": "1a084b63dc675eaa2a91fa27fa0322be816a136d2a18b143eeb782b2ebd6b644",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/regulator/axp20x-regulator.c",
+      "upstream_sha256": "a06555a9d389bb944a9e13393f00bfb373813e864816d52e1333852b748ffa4f",
+      "sha256": "d839e04530ab77596faad45750b36bf53742c48c187379eac0a8e4181e783cb5",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/usb/gadget/legacy/serial.c",
+      "upstream_sha256": "13738c99a66a1be30fcc17213f839cb6f9d93ab153b7f10ac2f86e4700db74a9",
+      "sha256": "115d43cbb9aea95d17350b228e095afb77accbf6c14d16311c457aac6904f4c4",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/video/backlight/pwm_bl.c",
+      "upstream_sha256": "1ae60e03892f94ee0773ede1b8e22c2d14f418f64044a7f1063a0471612dc77d",
+      "sha256": "339093d02b9bfb7159ddcdd7b68bb65080e6e9a595e68243b6ea34f8dcfd6cfa",
+      "kind": "modified"
+    },
+    {
+      "path": "drivers/gpu/drm/panel/panel-yhk-sq9365.c",
+      "sha256": "adb8111b8a0039124d4f621fe8e693884814d3e82a388c3daa34c8757bb5a3da",
+      "kind": "added",
+      "private": false
+    },
+    {
+      "path": "drivers/gpu/drm/panel/sq9365-private-table.h",
+      "sha256": "d7412abb703bdd7927b610f36f1451c6ceafdf6ad6fc8cc7476d6e8efdf3cc72",
+      "kind": "added",
+      "private": true
+    },
+    {
+      "path": "drivers/gpu/drm/panel/sq9365-program.h",
+      "sha256": "eefdb1581b1d33b1bca6000abb90105e6572373d0c5dfda7a73d2fbe29e853b9",
+      "kind": "added",
+      "private": false
+    }
+  ],
+  "production_touch_override": "kernel/production-touch/silead.c",
+  "configuration_note": "CONFIG_EXTRA_FIRMWARE_DIR is a portable local firmware input path.",
+  "standard_power_override": "kernel/standard-power/provider/axp20x-regulator.c"
+}

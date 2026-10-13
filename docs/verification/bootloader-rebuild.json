@@ -1,0 +1,62 @@
+{
+  "status": "LOADER_BUILT_AND_SAFETY_CHECKED",
+  "upstream_commit": "e50b1e8715011def8aff1588081a2649a2c6cd47",
+  "archive_sha256": "1b2ef9bdc0d43518cc78f3be369897791bc8556c77f81cd09973768670a4a098",
+  "input_files": [
+    {
+      "path": "boot-control-sd-only.patch",
+      "bytes": 1176,
+      "sha256": "7949095c22a854ebc39fb83cf37e70f98f859ff7a27f9b6af02d8c3bd527eb52"
+    },
+    {
+      "path": "a33-gettime-env.patch",
+      "bytes": 832,
+      "sha256": "e96d70fa855bd32f3544483792933e09a31c32cab0fe108db144805e56d7d34d"
+    },
+    {
+      "path": "base.config",
+      "bytes": 1192,
+      "sha256": "6ea1608c7d4b6e4b912edb45dbe492fa01dd8d8217e8a99f1c5c13fc03d2e43c"
+    },
+    {
+      "path": "accepted.config",
+      "bytes": 49003,
+      "sha256": "cad84b90196a557f066a9fed7b7b395ea81e493b63a9bfbc1e2eb37266125d86"
+    },
+    {
+      "path": "board-isolation.dtsi",
+      "bytes": 64,
+      "sha256": "dd77f57229f9b7a2ef40d33100d13ca92f1e298706fce2fc36a7a2f82006b1ab"
+    }
+  ],
+  "configuration_sha256": "cad84b90196a557f066a9fed7b7b395ea81e493b63a9bfbc1e2eb37266125d86",
+  "accepted_configuration_options_match": true,
+  "source_date_epoch": 1791827164,
+  "hardware_verified": false,
+  "deployed": false,
+  "kernel_provides_usb_serial": true,
+  "uboot_usb_gadget_enabled": false,
+  "mmc1_mmc2_disabled": true,
+  "sd_only_write_guard_enabled": true,
+  "reference_binary": {
+    "bytes": 443104,
+    "sha256": "13784fc9960ce4de553ca166432b17b78116ecff23e9a8bdeaa09596eb1560a6",
+    "timestamp": {
+      "date": "Oct 12 2026",
+      "time": "10:46:04",
+      "timezone": "-0700",
+      "epoch": 1791827164
+    }
+  },
+  "output": {
+    "bytes": 443104,
+    "sha256": "134f7227918d97a863a1fcb7959ff204f60d126cc6f8050ceb5ce45e8989fb90",
+    "spl_padded_length": 24576,
+    "spl_last_nonzero_end": 17578,
+    "spl_stack_margin_check_passed": true,
+    "egon_checksum_valid": true
+  },
+  "compiler": "arm-linux-gnueabihf-gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+  "matches_reference_binary_sha256": false,
+  "compiled_mmc1_mmc2_disabled": true
+}

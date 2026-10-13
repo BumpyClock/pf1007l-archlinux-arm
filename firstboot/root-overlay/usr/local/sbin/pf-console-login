@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
+[[ $EUID == 0 && $# == 1 && $1 =~ ^(ttyGS0|tty1)$ ]] || exit 2
+device=$1
+marker=/var/lib/pf-firstboot/complete
+if [[ ! -f $marker ]]; then
+    if [[ $device == ttyGS0 ]]; then
+        stty 115200 sane
+        /usr/local/sbin/pf-firstboot || exit 1
+    else
+        printf '\nConnect USB serial (115200 8N1) for first-time setup.\n'
+        until [[ -f $marker ]]; do sleep 2; done
+    fi
+fi
+if [[ $device == ttyGS0 ]]; then
+    exec /usr/bin/agetty --noissue --keep-baud 115200,38400,9600 ttyGS0 vt100
+fi
+exec /usr/bin/agetty --noreset - linux

@@ -1,0 +1,57 @@
+{
+  "status": "HOST_VERIFIED_NOT_HARDWARE_BOOTED",
+  "distribution_status": "DRAFT_VENDOR_PAYLOAD_REVIEW_REQUIRED",
+  "profile": "arch-usb-factory-r1",
+  "build": "working-control-7a6d1f80014b4ab3",
+  "kernel": "7.2.10-pf-console-r1",
+  "root_uuid": "bfccbc23-0ed1-4f8f-8670-c40d9c78b4c4",
+  "fat_start": 8192,
+  "fat_sectors": 524288,
+  "root_start": 532480,
+  "root_sectors": 8388608,
+  "image_bytes": 4567597056,
+  "firstboot_grows_last_root_partition": true,
+  "USB_serial_preserved": true,
+  "factory_passwords_locked": true,
+  "saved_networks": 0,
+  "ssh_disabled": true,
+  "private_filesystem_blocks_copied": false,
+  "file_manifest_verified_readonly": true,
+  "ARM_ELF_or_script_executables_validated": 945,
+  "packaged_content_audit": "PACKAGED_CONTENT_CHECKS_PASS",
+  "packaged_files_checked": 39098,
+  "assembled_partition_hashes": {
+    "boot": {
+      "sha256": "f83f014cb1c2ad2cf6facf431cd4bbc0bea2cd4a41037da66f8ba6abb7c1d1b3",
+      "bytes": 268435456,
+      "offset": 4194304
+    },
+    "root": {
+      "sha256": "52e70825f6e1d0fefc0e1a90b9aa9a29a0f749ba04d8c0982c7709ee4dd24bf0",
+      "bytes": 4294967296,
+      "offset": 272629760
+    }
+  },
+  "checks": [
+    "e2fsck -fn",
+    "sfdisk --verify",
+    "SPL payload readback",
+    "assembled partition hashes",
+    "readonly root file inventory",
+    "xz -t"
+  ],
+  "files": {
+    "pf1007l-archlinux-arm.img": {
+      "bytes": 4567597056,
+      "sha256": "928c3884cf168a45bc004d4eed1d5faf7aee942f67b37c02e5c48ef3af546a8f"
+    },
+    "pf1007l-archlinux-arm.img.xz": {
+      "bytes": 752572712,
+      "sha256": "9f19b9a86af799127bc8aa4bdfc3f6c2f91cc1282bb2104d4da1ef1f6135d200"
+    },
+    "pf1007l-sanitized-root.tar.xz": {
+      "bytes": 787344240,
+      "sha256": "55039e11fc918a95932e67a3652f5a5ba1cd87c63204b13304aa3631e71f10c8"
+    }
+  }
+}

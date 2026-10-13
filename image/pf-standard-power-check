@@ -1,0 +1,40 @@
+#!/usr/bin/bash
+set -euo pipefail
+[[ $# == 0 || ( $# == 1 && $1 == --network ) ]] || {
+    echo 'Usage: pf-standard-power-check [--network]' >&2; exit 2;
+}
+. /usr/local/lib/pf-direct-root.sh
+pf_require_direct_root
+[[ $(uname -r) == 7.2.10-pf-console-r1 ]]
+[[ $(systemctl show pf-console-boot.service -p ExecMainStatus --value) == 0 ]]
+systemctl is-active --quiet pf-display-console.service
+[[ ! -e /var/lib/pf-console-boot/pending && ! -d /sys/module/pf1007l_aic_manual_pwrseq ]]
+boot=$(cat /proc/sys/kernel/random/boot_id)
+[[ ! -f /var/lib/pf-console-boot/mmc1-rebind.boot || $(cat /var/lib/pf-console-boot/mmc1-rebind.boot) != "$boot" ]]
+if dmesg --color=never | grep -Fq 'fatal err update clk timeout'; then
+    echo 'Initial MMC clock timeout present.' >&2; exit 1;
+fi
+for name in pf-radio-dldo1 pf-radio-dldo2 wifi-chip-en; do
+    found=0
+    for regulator in /sys/class/regulator/regulator.*; do
+        [[ -r $regulator/name && $(cat "$regulator/name") == "$name" ]] || continue
+        [[ $(cat "$regulator/state") == enabled && $(cat "$regulator/microvolts") == 3300000 ]]
+        found=1
+    done
+    [[ $found == 1 ]]
+done
+[[ -d /sys/module/aic8800_fdrv && -d /sys/module/silead && -r /dev/dri/renderD128 ]]
+[[ $(cat /sys/class/backlight/display-backlight/brightness) == 65 ]]
+[[ $(cat /proc/sys/kernel/printk | tr '\t' ' ') == '4 4 1 4' ]]
+/usr/local/bin/pf-touch-capture --list
+echo 'Portable SD, standard power rails, display, WLAN hardware, touch, GPU and quiet console passed.'
+if [[ ${1:-} == --network ]]; then
+    systemctl is-active --quiet pf-wifi.service pf-wifi-dhcp.service
+    interface=$(cat /run/pf-wifi/interface)
+    wpa_cli -p /run/wpa_supplicant -i "$interface" status | grep -qx 'wpa_state=COMPLETED'
+    ip -4 -o address show dev "$interface" | grep -q ' inet '
+    gateway=$(ip -4 route show default dev "$interface" | awk '$1 == "default" {print $3; exit}')
+    [[ -n $gateway ]]
+    ping -c 2 -W 2 "$gateway" >/dev/null
+    echo 'Wi-Fi association, IPv4 address and gateway ping passed.'
+fi

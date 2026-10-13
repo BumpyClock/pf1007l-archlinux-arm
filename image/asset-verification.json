@@ -1,0 +1,7 @@
+{
+  "result": "PASS",
+  "all_asset_hashes_verified": true,
+  "compressed_image_matches_raw_sha256": true,
+  "image_status": "HOST_VERIFIED_NOT_HARDWARE_BOOTED",
+  "hardware_boot_tested": false
+}

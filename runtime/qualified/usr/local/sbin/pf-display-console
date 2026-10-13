@@ -1,0 +1,70 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+pf_console_evidence() {
+    local sys=$1 log=$2 connector fb vt candidate='' count=0 bound=0
+    for connector in "$sys"/class/drm/card*-DSI-1; do
+        [[ -d $connector ]] || continue
+        [[ $(cat "$connector/status") == connected && $(cat "$connector/enabled") == enabled ]] || return 1
+        grep -Fxq 800x1280 "$connector/modes" || return 1
+        count=$((count + 1))
+    done
+    [[ $count == 1 ]] || return 1
+    for fb in "$sys"/class/graphics/fb[0-9]*; do
+        [[ -d $fb ]] || continue
+        [[ $(basename "$(readlink -f "$fb/device/driver")") == sun4i-drm ]] || continue
+        [[ -z $candidate ]] || return 1
+        [[ $(cat "$fb/virtual_size") == 800,1280 ]] || return 1
+        [[ $(cat "$fb/bits_per_pixel") == 32 ]] || return 1
+        candidate=${fb##*/}
+    done
+    [[ -n $candidate ]] || return 1
+    for vt in "$sys"/class/vtconsole/vtcon*; do
+        [[ -d $vt ]] || continue
+        if grep -Fq 'frame buffer' "$vt/name" && [[ $(cat "$vt/bind") == 1 ]]; then bound=1; fi
+    done
+    [[ $bound == 1 ]] || return 1
+    grep -Fq '204 records complete in LP DCS; prepared' "$log" || return 1
+    grep -Fq 'enabled; scanout and manual backlight trial still unverified' "$log" || return 1
+    printf '%s\n' "$candidate"
+}
+
+pf_console_brightness() {
+    local path=$1 level=${2:-65}
+    [[ $level == 0 || $level == 65 ]] || return 1
+    [[ $(cat "$path/max_brightness") == 100 ]] || return 1
+    printf '%s\n' "$level" > "$path/brightness"
+    printf '0\n' > "$path/bl_power"
+    [[ $(cat "$path/brightness") == "$level" && $(cat "$path/bl_power") == 0 ]]
+}
+
+pf_console_main() {
+    local run=/run/pf-display-console attempt framebuffer boot_id level
+    case "${1:-}" in
+        --dark) level=0 ;;
+        --visible) level=65 ;;
+        *) echo 'usage: pf-display-console --dark|--visible' >&2; return 2 ;;
+    esac
+    [[ $EUID == 0 ]] || return 1
+    umask 022
+    mkdir -p "$run"
+    rm -f "$run/ready.json"
+    if [[ $level == 0 ]]; then pf_console_brightness /sys/class/backlight/display-backlight 0; fi
+    for ((attempt=0; attempt<80; attempt++)); do
+        dmesg --notime --color=never > "$run/kernel.log"
+        if framebuffer=$(pf_console_evidence /sys "$run/kernel.log"); then
+            pf_console_brightness /sys/class/backlight/display-backlight "$level"
+            boot_id=$(cat /proc/sys/kernel/random/boot_id)
+            printf '{"boot_id":"%s","framebuffer":"%s","mode":"800x1280","brightness_percent":%s,"verified":true}\n' \
+                "$boot_id" "$framebuffer" "$level" > "$run/ready.json.partial"
+            mv "$run/ready.json.partial" "$run/ready.json"
+            printf 'Measured framebuffer console bound at 800x1280; backlight %s%% PWM duty requested and read back.\n' "$level"
+            return 0
+        fi
+        sleep 1
+    done
+    echo 'Framebuffer console did not become ready; see /run/pf-display-console/kernel.log' >&2
+    return 1
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then pf_console_main "$@"; fi

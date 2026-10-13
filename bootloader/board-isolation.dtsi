@@ -1,0 +1,2 @@
+&mmc1 { status = "disabled"; };
+&mmc2 { status = "disabled"; };

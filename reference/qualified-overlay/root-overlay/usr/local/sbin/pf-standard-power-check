@@ -1,0 +1,58 @@
+#!/usr/bin/bash
+set -euo pipefail
+printf 'PF_STANDARD_POWER_VERIFY_BEGIN\n'
+boot=$(cat /proc/sys/kernel/random/boot_id)
+printf 'boot_id=%s\n' "$boot"
+uname -r
+cat /proc/cmdline
+sha256sum /usr/local/sbin/pf-console-boot \
+    /usr/lib/modules/7.2.10-pf-console-r1/kernel/drivers/regulator/axp20x-regulator.ko
+systemctl show pf-console-boot.service -p ExecMainStatus -p SubState
+systemctl is-active pf-display-console pf-wifi pf-wifi-dhcp
+[[ ! -e /var/lib/pf-console-boot/pending ]]
+echo no_pending_action
+[[ ! -d /sys/module/pf1007l_aic_manual_pwrseq ]]
+echo custom_power_module_absent
+[[ ! -f /var/lib/pf-console-boot/mmc1-rebind.boot ||
+   $(cat /var/lib/pf-console-boot/mmc1-rebind.boot) != "$boot" ]]
+echo no_mmc1_rebind_this_boot
+if dmesg --color=never | grep -Fq 'fatal err update clk timeout'; then
+    echo initial_mmc_clock_timeout_present
+    exit 1
+fi
+echo initial_mmc_clock_timeout_absent
+for name in pf-radio-dldo1 pf-radio-dldo2 wifi-chip-en; do
+    found=0
+    for regulator in /sys/class/regulator/regulator.*; do
+        [[ -r $regulator/name && $(cat "$regulator/name") == "$name" ]] || continue
+        [[ $(cat "$regulator/state") == enabled && $(cat "$regulator/microvolts") == 3300000 ]]
+        printf 'rail=%s enabled voltage=3300000\n' "$name"
+        found=1
+    done
+    [[ $found == 1 ]]
+done
+interface=$(cat /run/pf-wifi/interface)
+wpa_cli -p /run/wpa_supplicant -i "$interface" status | grep -x 'wpa_state=COMPLETED'
+[[ $(wpa_cli -p /run/wpa_supplicant -i "$interface" list_networks | tail -n +2 | wc -l) == 2 ]]
+echo two_saved_networks_retained
+ip -4 -o address show dev "$interface" | grep -q ' inet '
+echo dhcp_address_present
+gateway=$(ip -4 route show default dev "$interface" | awk '$1 == "default" {print $3; exit}')
+[[ -n $gateway ]]
+ping -c 2 -W 2 "$gateway" >/dev/null
+echo gateway_ping_passed
+[[ $(cat /sys/class/backlight/display-backlight/brightness) == 65 ]]
+cat /run/pf-display-console/ready.json
+[[ -d /sys/module/silead ]]
+/usr/local/bin/pf-touch-capture --list
+[[ -r /dev/dri/renderD128 ]]
+echo gpu_render_device_present
+[[ $(cat /proc/sys/kernel/printk | tr '\t' ' ') == '4 4 1 4' ]]
+grep -qx 'kernel.printk = 4 4 1 4' /etc/sysctl.d/60-pf-clean-console.conf
+systemctl is-active --quiet getty@tty1.service
+if systemctl show getty@tty1.service -p ExecStart --value | grep -q -- '--noclear'; then
+    echo getty_screen_clear_disabled
+    exit 1
+fi
+echo quiet_kernel_console_and_clean_getty_verified
+printf 'PF_STANDARD_POWER_VERIFY_END\n'

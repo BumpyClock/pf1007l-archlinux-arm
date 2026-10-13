@@ -1,0 +1,13 @@
+[Unit]
+Description=Expand PF1007L root filesystem to SD capacity
+After=local-fs.target
+Before=getty@tty1.service serial-getty@ttyGS0.service
+ConditionPathExists=!/var/lib/pf-firstboot/root-expanded
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pf-grow-root
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

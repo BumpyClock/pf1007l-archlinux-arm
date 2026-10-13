@@ -1,0 +1,1 @@
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="silead_ts", GROUP="diag", MODE="0660"

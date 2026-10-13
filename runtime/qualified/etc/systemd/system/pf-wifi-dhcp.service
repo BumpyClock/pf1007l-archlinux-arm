@@ -1,0 +1,11 @@
+[Unit]
+Description=PF1007L carrier-driven Wi-Fi DHCP
+After=pf-wifi.service systemd-resolved.service
+Wants=systemd-resolved.service
+PartOf=pf-wifi.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/pf-wifi dhcp
+Restart=on-failure
+RestartSec=5

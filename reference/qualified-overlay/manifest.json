@@ -1,0 +1,117 @@
+{
+  "release": "standard-wifi-power-r2",
+  "status": "SOFTWARE_REBOOT_VERIFIED",
+  "profile": "arch-usb-wifi-upstream-r1",
+  "build": "working-control-1f8aa3b15359f8ec",
+  "kernel": "7.2.10-pf-console-r1",
+  "storage": "existing read-only base plus writable overlay",
+  "initial_sdio_enumeration": true,
+  "mmc1_rebind_used": false,
+  "wifi_association_dhcp_verified": true,
+  "display_brightness": 65,
+  "touch_input_ready": true,
+  "gpu_render_device_present": true,
+  "cold_power_cycle_verified": false,
+  "network_configuration_included": false,
+  "files": [
+    {
+      "path": "boot/boot-control.scr",
+      "bytes": 8071,
+      "sha256": "6a38d4319ace1b4e9042822324b20186b92477625d90f00832e2101aa086289e"
+    },
+    {
+      "path": "boot/initramfs.cpio.gz",
+      "bytes": 927289,
+      "sha256": "15728d2cb68511bb67f8968a6321e12af3e303afb16103f9fefc8213a18eebf7"
+    },
+    {
+      "path": "boot/SHA256SUMS",
+      "bytes": 335,
+      "sha256": "8816d044d74d79a89284140ca336425f766e69b70600722272fa8d57c6df4cf2"
+    },
+    {
+      "path": "boot/sun8i-a33-pf1007l-stage1.dtb",
+      "bytes": 23144,
+      "sha256": "e3a644f7024bfaf38a057d818f01943140b61191f2fa4b88cc95971c4dc5b808"
+    },
+    {
+      "path": "boot/zImage",
+      "bytes": 5442128,
+      "sha256": "abd477f74589516357511e00354246f588898b2c40e191c40a1acee7bd3ac186"
+    },
+    {
+      "path": "README.md",
+      "bytes": 909,
+      "sha256": "01d11d569840ec7bd830265482e58838340ffc09e8e8b4cf89c82403e5ad281a"
+    },
+    {
+      "path": "root-overlay/etc/sysctl.d/60-pf-clean-console.conf",
+      "bytes": 24,
+      "sha256": "7fffa9c8428d942fa4adfebd447fa7ddc0c47b3dee04ef9874758bb45aca99b6",
+      "installed_path": "/etc/sysctl.d/60-pf-clean-console.conf",
+      "owner": "root:root",
+      "mode": "0644"
+    },
+    {
+      "path": "root-overlay/etc/systemd/system/getty@tty1.service.d/60-pf-clean-console.conf",
+      "bytes": 68,
+      "sha256": "b594be0126f960efec3525ebab219d918cd91bab0783148d50c4d5ffba0ef1ff",
+      "installed_path": "/etc/systemd/system/getty@tty1.service.d/60-pf-clean-console.conf",
+      "owner": "root:root",
+      "mode": "0644"
+    },
+    {
+      "path": "root-overlay/etc/udev/rules.d/99-pf-touch-calibration.rules",
+      "bytes": 249,
+      "sha256": "c532d2bd10640914326d1d60e9ace442ea09ebbbb76bd17e38b1ad3048a094bc",
+      "installed_path": "/etc/udev/rules.d/99-pf-touch-calibration.rules",
+      "owner": "root:root",
+      "mode": "0644"
+    },
+    {
+      "path": "root-overlay/usr/lib/modules/7.2.10-pf-console-r1/kernel/drivers/input/touchscreen/silead.ko",
+      "bytes": 15976,
+      "sha256": "af1b410afa5c201a4128d3f87f897c971872abc46d53c7de772f24d935d8f724",
+      "installed_path": "/usr/lib/modules/7.2.10-pf-console-r1/kernel/drivers/input/touchscreen/silead.ko",
+      "owner": "root:root",
+      "mode": "0644"
+    },
+    {
+      "path": "root-overlay/usr/lib/modules/7.2.10-pf-console-r1/kernel/drivers/regulator/axp20x-regulator.ko",
+      "bytes": 62408,
+      "sha256": "ca5406d996e46e13c52452073dbe9244711e87301d2a0754b6d26565b22d6a43",
+      "installed_path": "/usr/lib/modules/7.2.10-pf-console-r1/kernel/drivers/regulator/axp20x-regulator.ko",
+      "owner": "root:root",
+      "mode": "0644"
+    },
+    {
+      "path": "root-overlay/usr/local/sbin/pf-console-boot",
+      "bytes": 16225,
+      "sha256": "34bb6e63e4553cb3ae9ee3e5be2ed3e05c7a8a18376acf73bc44dadc6ee72261",
+      "installed_path": "/usr/local/sbin/pf-console-boot",
+      "owner": "root:root",
+      "mode": "0755"
+    },
+    {
+      "path": "root-overlay/usr/local/sbin/pf-standard-power-check",
+      "bytes": 2484,
+      "sha256": "c3fedddde2a894dc3a394bfd3278715a808c62c81f54a5d212fe78856540aab4",
+      "installed_path": "/usr/local/sbin/pf-standard-power-check",
+      "owner": "root:root",
+      "mode": "0755"
+    },
+    {
+      "path": "runtime/install.sh",
+      "bytes": 24156,
+      "sha256": "2c582258357ab19cd02d4caadc14f215c5e0cf52f7f6aab5c602aa90bf75c14c"
+    }
+  ],
+  "quiet_kernel_printk": "4 4 1 4",
+  "clean_getty": true,
+  "gpu_renderer": "Mali400",
+  "gpu_api": "OpenGL ES 2.0 Mesa 26.2.4-arch1.1",
+  "quiet_console_reboot_verified": true,
+  "gpu_shader_draw_verified": true,
+  "gpu_demo_fps": 58.814609,
+  "gpu_demo_refresh_limited": true
+}

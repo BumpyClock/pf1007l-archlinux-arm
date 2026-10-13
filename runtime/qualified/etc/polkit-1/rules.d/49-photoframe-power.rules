@@ -1,0 +1,10 @@
+polkit.addRule(function(action, subject) {
+    if (subject.user === "diag" && [
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.power-off-multiple-sessions",
+        "org.freedesktop.login1.reboot",
+        "org.freedesktop.login1.reboot-multiple-sessions"
+    ].indexOf(action.id) !== -1) {
+        return polkit.Result.YES;
+    }
+});

@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+find_interface() {
+    attempts=0
+    while [ "$attempts" -lt 60 ]; do
+        count=0
+        interface=
+        for wireless in /sys/class/net/*/phy80211; do
+            [ -d "$wireless" ] || continue
+            path=${wireless%/phy80211}
+            interface=${path##*/}
+            count=$((count + 1))
+        done
+        if [ "$count" -eq 1 ]; then
+            printf '%s\n' "$interface"
+            return 0
+        fi
+        if [ "$count" -gt 1 ]; then
+            echo 'Expected one wireless interface; refusing to choose.' >&2
+            return 1
+        fi
+        attempts=$((attempts + 1))
+        sleep 1
+    done
+    echo 'No wireless interface appeared within 60 seconds.' >&2
+    return 1
+}
+
+case ${1-} in
+    supplicant)
+        umask 077
+        config=/var/lib/pf-wifi/wpa_supplicant.conf
+        [ ! -L "$config" ]
+        if [ ! -e "$config" ]; then
+            printf '%s\n' 'ctrl_interface=DIR=/run/wpa_supplicant GROUP=diag' \
+                'update_config=1' 'ap_scan=1' > "$config"
+        fi
+        [ -f "$config" ]
+        chmod 0600 "$config"
+        interface=$(find_interface)
+        printf '%s\n' "$interface" > /run/pf-wifi/interface
+        exec /usr/bin/wpa_supplicant -qq -Dnl80211 -i "$interface" -c "$config"
+        ;;
+    dhcp)
+        interface=$(find_interface)
+        exec /usr/bin/dhcpcd -B -q -4 -L --nohook wpa_supplicant "$interface"
+        ;;
+    *)
+        echo 'Usage: pf-wifi supplicant|dhcp' >&2
+        exit 2
+        ;;
+esac

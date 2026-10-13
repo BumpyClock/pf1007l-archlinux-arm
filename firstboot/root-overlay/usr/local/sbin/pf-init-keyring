@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
+umask 077
+[[ $EUID == 0 && -f /var/lib/pf-firstboot/complete ]]
+marker=/var/lib/pf-firstboot/pacman-keyring-ready
+[[ ! -L $marker ]]
+[[ ! -f $marker ]] || exit 0
+exec 9>/run/pf-init-keyring.lock
+flock 9
+[[ ! -f $marker ]] || exit 0
+pacman-key --init
+pacman-key --populate archlinuxarm
+temporary=$(mktemp /var/lib/pf-firstboot/.keyring-ready-XXXXXXXX)
+trap 'rm -f -- "$temporary"' EXIT
+printf 'version=1\n' > "$temporary"
+sync -f "$temporary"
+mv -T -- "$temporary" "$marker"
+sync -f /var/lib/pf-firstboot

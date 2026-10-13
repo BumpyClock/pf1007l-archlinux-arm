@@ -1,0 +1,6 @@
+{
+  "commit": "55d82dd8c78861cf034a22cc29ebdd21d93b7349",
+  "subtree": "src/SDIO/driver_fw/driver/aic8800",
+  "remote": "https://github.com/radxa-pkg/aic8800.git",
+  "working_tree_port_patch": "aic8800-port.patch"
+}

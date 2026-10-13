@@ -1,0 +1,9 @@
+[Unit]
+Description=Verify PF1007L framebuffer console with backlight dark for radio startup
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/pf-display-console --dark
+TimeoutStartSec=100
