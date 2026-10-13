@@ -1,5 +1,14 @@
 # Changelog
 
+## Publication repository cleanup
+
+- Keep generated images, review reports, build receipts and demo binaries
+  outside the source repository.
+- Use external work/output directories in the setup guides. Require an output
+  directory for the cube builder; store USB installer receipts in the system
+  temporary directory by default.
+- Retain setup instructions, source, tests, package lists and required input pins.
+
 ## Image metadata correction
 
 - Install root overlays without copying Windows directory ownership or modes.

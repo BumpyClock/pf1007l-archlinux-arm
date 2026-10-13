@@ -6,11 +6,14 @@ The Windows scripts work in Windows PowerShell 5.1 or PowerShell 7. They prompt 
 
 ```powershell
 $frameCredential = Get-Credential -UserName diag
-./tools/capture-frame.ps1 -Port COM3 -Credential $frameCredential -CommandsFile ./commands.txt -OutputPath ./tools/receipts/console.txt
-./tools/pf-usb-transfer.ps1 -Port COM3 -Credential $frameCredential -InputPath ./payload.bin -ReceiptPath ./tools/receipts/transfer.json -MaxBytes 16777216 -TransferTimeoutSeconds 120
+./tools/capture-frame.ps1 -Port COM3 -Credential $frameCredential -CommandsFile ../pf1007l-work/commands.txt -OutputPath ../pf1007l-work/receipts/console.txt
+./tools/pf-usb-transfer.ps1 -Port COM3 -Credential $frameCredential -InputPath ../pf1007l-work/payload.bin -ReceiptPath ../pf1007l-work/receipts/transfer.json -MaxBytes 16777216 -TransferTimeoutSeconds 120
 ```
 
-Receipts and transcripts can contain local file paths and device output. Keep them private; `tools/receipts/` is excluded from Git and is the installer’s default receipt location.
+Receipts and transcripts can contain local paths and device output. Store them
+outside the checkout. The installer defaults to an OS temporary directory;
+use `-ReceiptDirectory ../pf1007l-work/receipts/install-r1` to retain a specific
+run. That directory must be new.
 
 Choose the actual `COMx` port shown by Device Manager. `capture-frame.ps1` runs one shell command per nonblank line. Never put passwords or private network configuration in its commands file: commands appear in the console transcript. Use an interactive terminal for secret entry.
 
@@ -28,13 +31,13 @@ partition-based root filesystem.
 Validate locally before connecting to the frame:
 
 ```powershell
-./tools/pf-usb-install.ps1 -BundlePath ./my-bundle -ProfileId arch-usb-my-build-r1 -ValidateOnly
+./tools/pf-usb-install.ps1 -BundlePath ../pf1007l-work/my-bundle -ProfileId arch-usb-my-build-r1 -ValidateOnly
 ```
 
 Upload and install without selecting:
 
 ```powershell
-./tools/pf-usb-install.ps1 -Port COM3 -Credential $frameCredential -BundlePath ./my-bundle -ProfileId arch-usb-my-build-r1
+./tools/pf-usb-install.ps1 -Port COM3 -Credential $frameCredential -BundlePath ../pf1007l-work/my-bundle -ProfileId arch-usb-my-build-r1 -ReceiptDirectory ../pf1007l-work/receipts/install-r1
 ```
 
 Add `-Select -BuildId working-control-0123456789abcdef` with the **actual** build ID embedded in your launcher to select that profile. Selection never reboots the frame or overwrites its root filesystem. Review the receipts, then use an interactive terminal and the maintenance command to reboot when ready. An unsuccessful upload stays unselected; use a new profile ID after correcting a failed install.

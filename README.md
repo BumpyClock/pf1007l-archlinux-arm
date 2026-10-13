@@ -17,9 +17,7 @@ There are two installations to distinguish when reading the sources and results.
 
 The portable image is designed to expand its root partition to fill the card
 on first boot. Its recorded status is `HOST_VERIFIED_NOT_HARDWARE_BOOTED`.
-Read [validation](docs/validation.md) and the
-[saved verification receipts](docs/verification/README.md) before relying on a
-hardware result. Vendor payloads also require distribution review before a
+Read [validation](docs/validation.md) before relying on a hardware result. Vendor payloads also require distribution review before a
 public release; see [firmware inputs](firmware/README.md).
 
 This project targets the described board and panel revision. Another A33 frame
@@ -70,19 +68,19 @@ to eMMC.
 | [hardware](hardware/) | Complete board device tree |
 | [firmware](firmware/) | External firmware hashes and Android-module extraction tool |
 | [runtime](runtime/) | Snapshot of qualified services and runtime configuration for lookup |
-| [gpu-test](gpu-test/) | GLES2 cube source, binary and bounded performance checks |
+| [gpu-test](gpu-test/) | Pinned GLES2 cube source, build recipe and bounded performance checks |
 | [reference](reference/) | Hardware-qualified original overlay baseline; not the portable image's update bundle |
 | [docs](docs/) | Hardware, setup, rebuilding, maintenance, privacy and validation guides |
 
-Large generated images stay outside Git. The private draft release is for
+Generated images, binaries, logs and local receipts stay outside this checkout. The private draft release is for
 manual review. The image contains device firmware; firmware distribution
 permission and a real boot test must be reviewed before a public release.
 The extracted vendor panel and touch inputs are excluded from Git.
 
 The private [review release](https://github.com/BumpyClock/pf1007l-archlinux-arm/releases)
 contains the compressed image, sanitized rebuild root, matching portable USB
-boot profile, file manifest and SHA256 checksums. The compressed image is
-717 MiB; it expands to a 4.25 GiB image before writing.
+boot profile, file manifest and SHA256 checksums. Decompress the image before
+writing it; the default uncompressed image is about 4.25 GiB.
 
 ## For maintainers and agents
 
@@ -90,8 +88,8 @@ Start with [hardware configuration](docs/hardware.md),
 [validation](docs/validation.md) and [build and update](docs/build.md).
 They record the board assumptions, what has been tested and how to produce
 compatible artifacts. This repository contains the selected baseline and
-rebuild inputs. Private session logs, Android backups and credentials are kept
-outside Git.
+rebuild inputs. Generated outputs, private session logs, Android backups and credentials stay
+outside the checkout.
 
 Follow the build path before editing a configuration snapshot:
 
@@ -120,8 +118,8 @@ modules or repair root-filesystem corruption.
 Source and installation manifests pin file hashes. If a maintained input
 changes, update its corresponding pins and validate the resulting artifacts.
 Preserve upstream license notices and `.gitattributes` rules for pinned files.
-Saved receipts describe the artifacts that were checked; collect new evidence
-for new artifacts instead of changing an old receipt to imply a pass.
+Validate each new artifact. Store its local receipts outside the checkout;
+release assets include their own manifests and checksums.
 
 Use Linux or Linux inside WSL for kernel and image builds. Kernel builds need
 the ARM hard-float cross-toolchain; image assembly requires root and filesystem
@@ -145,10 +143,11 @@ changes and [the USB tool checks](tools/tests/test-serial-tools.ps1) for host
 transfer changes. Record hardware results separately in
 [validation](docs/validation.md).
 
-Keep generated artifacts in ignored `dist/`, `out/` or `build/` directories.
-Keep external firmware in `firmware/local/` or outside the repository, and
-serial receipts in `tools/receipts/`. Do not commit network profiles, passwords,
-private keys, device backups or session transcripts. Review embedded payloads
+Keep generated artifacts and external firmware outside the checkout, for
+example in a sibling `pf1007l-work/` directory. Build recipes require new work
+and output directories; the USB installer uses temporary storage unless you supply
+an external receipt path. Do not store network profiles, passwords, private
+keys, device backups or session transcripts here. Review embedded payloads
 as well as tracked files before publishing an image.
 
 ## Hardware results

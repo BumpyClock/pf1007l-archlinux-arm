@@ -82,7 +82,7 @@ if ($ValidateOnly) {
 $Credential = Get-PfCredential -Credential $Credential
 $token = [Guid]::NewGuid().ToString('N')
 if (-not $ReceiptDirectory) {
-    $ReceiptDirectory = Join-Path $PSScriptRoot ('receipts/install-' + $token)
+    $ReceiptDirectory = Join-Path ([IO.Path]::GetTempPath()) ('pf1007l-install-' + $token)
 }
 $receiptDir = [IO.Path]::GetFullPath($ReceiptDirectory)
 if (Test-Path -LiteralPath $receiptDir) { throw 'ReceiptDirectory must be new to preserve prior evidence' }

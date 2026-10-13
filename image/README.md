@@ -20,7 +20,7 @@ Run on Linux as root with `python3`, `e2fsprogs`, `dosfstools`, `util-linux`, `u
 
 The maintained source and pinned boot seed are in this directory. A clean root archive is an input that can be redistributed separately from Git after privacy, licensing and hardware review. Rebuilding from that archive requires no private device backup:
 
-`inputs/` contains the original tested boot seeds and storage-dependent maintenance template. They are build inputs. The builder replaces their loop-backed storage path before packaging. Use `dist/portable-profile/` or [make-boot-profile.py](../tools/make-boot-profile.py) for a portable card. Copying the raw seed initramfs onto that card would select the wrong root-storage mechanism.
+`inputs/` contains the original tested boot seeds and storage-dependent maintenance template. They are build inputs. The builder replaces their loop-backed storage path before packaging. Use the `portable-profile/` directory in your external image output, or [make-boot-profile.py](../tools/make-boot-profile.py) for a portable card. Copying the raw seed initramfs onto that card would select the wrong root-storage mechanism.
 
 ```sh
 sudo python3 image/build_image.py \
@@ -29,7 +29,7 @@ sudo python3 image/build_image.py \
   --output /var/tmp/pf-build-dist
 ```
 
-Use new work and output paths each run. Verify the input archive against the release's `image-manifest.json` before using it. The builder also accepts `--root-tree` for a prepared Arch Linux ARM armv7 filesystem, or `--base` plus `--state` to import an immutable base and a consistent frozen overlay snapshot. Private seeds remain read-only and are never copied as filesystem blocks into the published image.
+Use new work and output paths outside the checkout each run. Verify the input archive against the release's `image-manifest.json` before using it. The builder also accepts `--root-tree` for a prepared Arch Linux ARM armv7 filesystem, or `--base` plus `--state` to import an immutable base and a consistent frozen overlay snapshot. Private seeds remain read-only and are never copied as filesystem blocks into the published image.
 
 For an independent fresh userspace build, extract the official Arch Linux ARM armv7 root filesystem into a Linux directory, install the package set in `installed-packages.txt`, then build/install this repository's kernel, device modules, firmware inputs and runtime tools into that tree. Pass it using `--root-tree`. A plain upstream rootfs alone lacks the frame-specific modules and tools and is not a complete image input. The sanitized root archive provides the exact packaged userspace when old package versions have left rolling mirrors.
 
@@ -48,7 +48,10 @@ filesystem must match the inventory when mounted read-only. Archive validation
 checks the same metadata and rejects owner names, access/change timestamps and
 invalid hardlink mappings. File modification times are retained.
 
-Package content checks are mandatory. An initial private seed had mismatched `glmark2`, `libjpeg-turbo` and TPM configuration files. These were restored from signed packages of the same installed versions; [repair-receipt](seed-repair-receipt.json) records archive hashes and the verified public build key. This repair changed the exported userspace. The working frame was unchanged. The cause of the seed mismatch remains unproven. Filesystem consistency alone does not prove package contents are correct.
+Package content checks are mandatory. The builder checks installed files
+against pacman's mtree hashes and rejects unexplained mismatches. A consistent
+filesystem can still contain damaged package files. Prepare the root archive
+or root tree with the required, verified package set before assembly.
 
 Outputs:
 
@@ -70,7 +73,7 @@ sudo python3 image/test_growth_loop.py
 sudo python3 image/test_sanitize.py
 python3 image/test_package_integrity.py
 sudo python3 image/test_metadata.py
-python3 image/verify_assets.py --dist /path/to/assets
+python3 image/verify_assets.py --dist /work/pf1007l-assets
 ```
 
 The tests reject foreign UUIDs, eMMC, extra partitions, invalid starts, undersized cards and extents beyond MBR limits. The loop test grows a mounted ext4 filesystem on a new disposable image, verifies existing data and runs `e2fsck -fn`. The builder also checks filesystem consistency, the partition table, SPL readback, every installed root file and compressed-file integrity.

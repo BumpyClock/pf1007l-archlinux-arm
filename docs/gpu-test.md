@@ -45,12 +45,21 @@ remains available. Do not stop someone else's active display session.
 
 ## Run the cube
 
-The saved [binary](../gpu-test/artifacts/kmscube.armv7h) uses upstream commit
-`f60e50e887d3c49e91ac9b06d8199b36152632fa`, with SHA256
-`a22bf869acfd80f0483e0360aecb571871d1ae969ed8d56ea5815ea2abad0abb`.
+Build the pinned cube source with the [cross-build recipe](../gpu-test/README.md):
 
 ```sh
-timeout -k 5 45 ./kmscube.armv7h \
+python3 gpu-test/build-kmscube.py \
+  --sysroot /work/arm-sysroot --work /work/cube-build \
+  --output /work/cube-output
+```
+
+The source commit is `f60e50e887d3c49e91ac9b06d8199b36152632fa`. Copy
+`/work/cube-output/kmscube.armv7h` to the frame through the USB transfer tool,
+then stage it at `/run/pf-kmscube`. Generated outputs belong outside this
+checkout. On the frame, the direct invocation is:
+
+```sh
+timeout -k 5 45 /run/pf-kmscube \
   -D /dev/dri/card1 -M smooth -x -m 0 -f RG16 -v 800x1280 -N -c 600
 ```
 

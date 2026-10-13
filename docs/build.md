@@ -8,7 +8,7 @@ The archive contains a clean userspace and its required device payloads. Verify
 its release checksum and review firmware distribution permissions before use.
 It is separate from the original frame's private state backup.
 
-Run on Linux, with new work and output directories:
+Run on Linux, with new work and output directories outside the checkout:
 
 ```sh
 sudo python3 image/build_image.py \
@@ -52,11 +52,11 @@ python3 tools/make-boot-profile.py \
   --kernel /new-build/zImage \
   --dtb /new-build/sun8i-a33-pf1007l-stage1.dtb \
   --initramfs /installed-image/portable-profile/initramfs.cpio.gz \
-  --output ./out/test-r1
+  --output ../pf1007l-work/test-r1
 ```
 
-This creates `out/test-r1/bundle/` with the five files required by the uploader,
-and a separate `profile.json` recording the build ID. It does not install or
+This creates `../pf1007l-work/test-r1/bundle/` with the five files required by
+the uploader, and a separate `profile.json` recording the build ID. It does not install or
 select anything. Choose a new profile ID for each experiment; the maintenance
 helper refuses to overwrite an existing profile.
 
@@ -69,7 +69,7 @@ python3 tools/make-boot-profile.py \
   --profile-id arch-usb-test-r2 \
   --kernel /new-build/zImage --dtb /new-build/board.dtb \
   --root-uuid TARGET-ROOT-UUID --root-sectors 8388608 \
-  --output ./out/test-r2
+  --output ../pf1007l-work/test-r2
 ```
 
 Substitute the actual UUID and minimum extent. The generator uses the current
@@ -79,7 +79,7 @@ not an arbitrary Linux distribution or kernel ABI.
 Validate on Windows before opening serial:
 
 ```powershell
-./tools/pf-usb-install.ps1 -BundlePath ./out/test-r1/bundle `
+./tools/pf-usb-install.ps1 -BundlePath ../pf1007l-work/test-r1/bundle `
   -ProfileId arch-usb-test-r1 -ValidateOnly
 ```
 

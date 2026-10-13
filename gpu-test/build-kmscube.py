@@ -13,7 +13,7 @@ COMMIT = 'f60e50e887d3c49e91ac9b06d8199b36152632fa'
 ARCHIVE_SHA = '608240df61512f9423a63731b4eaff981ab6ba830364a4c90b63ddf57eb59833'
 SYSROOT = None
 WORK = None
-OUTPUT = PROJECT / 'out/gpu-test'
+OUTPUT = None
 QEMU = None
 SOURCES = ['common.c', 'cube-smooth.c', 'cube-gears.c', 'cube-tex.c', 'drm-atomic.c',
            'drm-common.c', 'drm-legacy.c', 'drm-offscreen.c', 'esTransform.c',
@@ -75,7 +75,7 @@ def build():
     receipt = {'status': 'CROSS_BUILT_HELP_RUN_NOT_HARDWARE_TESTED' if QEMU else 'CROSS_BUILT_ELF_CHECKED_HELP_UNTESTED',
                'upstream': 'https://gitlab.freedesktop.org/mesa/kmscube', 'commit': COMMIT,
                'archive': archive.relative_to(PROJECT).as_posix(), 'archive_sha256': sha(archive),
-               'binary': binary.relative_to(PROJECT).as_posix(), 'binary_sha256': sha(binary),
+               'binary': binary.name, 'binary_sha256': sha(binary),
                'binary_bytes': binary.stat().st_size, 'sources': {name: sha(source / name) for name in SOURCES},
                'compiler': run(compiler, '--version').splitlines()[0],
                'sysroot': str(SYSROOT), 'build_command': command,
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sysroot', type=Path, required=True)
     parser.add_argument('--work', type=Path, required=True)
-    parser.add_argument('--output', type=Path, default=OUTPUT)
+    parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--qemu', type=Path)
     args = parser.parse_args()
     SYSROOT, WORK, OUTPUT, QEMU = args.sysroot.resolve(), args.work.resolve(), args.output.resolve(), args.qemu
