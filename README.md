@@ -82,7 +82,7 @@ The extracted vendor panel and touch inputs are excluded from Git.
 The private [review release](https://github.com/BumpyClock/pf1007l-archlinux-arm/releases)
 contains the compressed image, sanitized rebuild root, matching portable USB
 boot profile, file manifest and SHA256 checksums. The compressed image is
-718 MiB; it expands to a 4.25 GiB image before writing.
+717 MiB; it expands to a 4.25 GiB image before writing.
 
 ## For maintainers and agents
 

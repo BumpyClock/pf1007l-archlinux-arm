@@ -1,5 +1,16 @@
 # Changelog
 
+## Image metadata correction
+
+- Install root overlays without copying Windows directory ownership or modes.
+- Restore protected system directory ownership and permissions while preserving
+  service-owned directories and the `diag` home.
+- Verify directory, file and symlink ownership/modes in the assembled image.
+- Omit archive access/change timestamps from the sanitized rebuild root.
+
+The corrected image remains a private candidate awaiting a hardware boot test
+and vendor firmware distribution review.
+
 ## Initial private review
 
 - Preserve the hardware-qualified base Arch Linux ARM kernel, display, touch,

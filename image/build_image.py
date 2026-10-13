@@ -118,13 +118,71 @@ def write(root, relative, data, mode=0o644):
 def copy_overlay(source, root):
     if not source.is_dir():
         raise ValueError(f'Required root overlay missing: {source.name}')
-    run('cp', '-a', str(source) + '/.', root)
-    for path in source.rglob('*'):
-        if path.is_file() and not path.is_symlink():
-            relative = path.relative_to(source)
-            target = root / relative
-            target.chmod(0o755 if relative.parts[:3] == ('usr', 'local', 'sbin') else 0o644)
-            os.chown(target, 0, 0)
+    for path in sorted(source.rglob('*')):
+        relative = path.relative_to(source)
+        if path.is_symlink() or not (path.is_dir() or path.is_file()):
+            raise ValueError('Root overlays must contain only directories and regular files')
+        target = root / relative
+        if not target.parent.resolve().is_relative_to(root.resolve()):
+            raise ValueError('Root overlay escapes scratch root')
+        if path.is_dir():
+            if target.is_symlink() or (target.exists() and not target.is_dir()):
+                raise ValueError('Root overlay directory conflicts with installed path')
+            if not target.exists():
+                target.mkdir(mode=0o755)
+                os.chown(target, 0, 0)
+        else:
+            write(root, relative, path.read_bytes(),
+                  0o755 if relative.parts[:3] == ('usr', 'local', 'sbin') else 0o644)
+
+
+def normalize_directories(root, overlays):
+    """Repair only system ancestors imported by these two qualified overlays."""
+    directories = {'.'}
+    for source in overlays:
+        for path in source.rglob('*'):
+            if path.is_dir() and not path.is_symlink():
+                relative = path.relative_to(source)
+                if relative.parts[0] not in ('etc', 'usr'):
+                    raise ValueError('Overlay directory policy is required outside etc/usr')
+                directories.add(str(relative))
+    directories.update(('usr/local/lib', 'etc/systemd/system/multi-user.target.wants'))
+    expected = {relative: (0, 0, 0o755) for relative in directories}
+    recovery_directory = root / 'lost+found'
+    if not recovery_directory.exists():
+        recovery_directory.mkdir(mode=0o700)
+    for relative in ('root', 'lost+found', 'var/lib/pf-wifi', 'var/lib/pf-firstboot'):
+        expected[relative] = (0, 0, 0o700)
+    for relative in ('tmp', 'var/tmp'):
+        expected[relative] = (0, 0, 0o1777)
+    diag = next(line.split(':') for line in (root / 'etc/passwd').read_text().splitlines()
+                if line.startswith('diag:'))
+    for relative in ('home/diag', 'home/diag/pf-update'):
+        expected[relative] = (int(diag[2]), int(diag[3]), 0o755)
+    for relative, (uid, gid, mode) in expected.items():
+        path = root / relative
+        if path.is_symlink() or not path.is_dir():
+            raise ValueError('Managed directory is not a real directory')
+        os.chown(path, uid, gid)
+        path.chmod(mode)
+    return expected
+
+
+def validate_directories(root, expected):
+    for relative, attributes in expected.items():
+        metadata = (root / relative).lstat()
+        actual = (metadata.st_uid, metadata.st_gid, stat.S_IMODE(metadata.st_mode))
+        if not stat.S_ISDIR(metadata.st_mode) or actual != attributes:
+            raise ValueError(f'Unsafe managed directory metadata: {relative}')
+    checked = 0
+    for path in [root, *root.rglob('*')]:
+        metadata = path.lstat()
+        if not stat.S_ISDIR(metadata.st_mode):
+            continue
+        checked += 1
+        if metadata.st_mode & 0o002 and str(path.relative_to(root)) not in ('tmp', 'var/tmp'):
+            raise ValueError('Unexpected world-writable exported directory')
+    return checked
 
 
 def sanitize(root):
@@ -294,12 +352,20 @@ def prepare_boot(work, root_uuid, root_sectors):
 
 def inventory(root):
     result = {}
-    for path in sorted(root.rglob('*')):
+    for path in [root, *sorted(root.rglob('*'))]:
         relative = str(path.relative_to(root))
+        metadata = path.lstat()
+        record = {'uid': metadata.st_uid, 'gid': metadata.st_gid,
+                  'mode': oct(stat.S_IMODE(metadata.st_mode))}
         if path.is_symlink():
-            result[relative] = {'symlink': os.readlink(path)}
+            record.update(type='symlink', symlink=os.readlink(path))
         elif path.is_file():
-            result[relative] = {'bytes': path.stat().st_size, 'sha256': file_hash(path), 'mode': oct(stat.S_IMODE(path.stat().st_mode))}
+            record.update(type='file', bytes=metadata.st_size, sha256=file_hash(path))
+        elif path.is_dir():
+            record['type'] = 'directory'
+        else:
+            raise ValueError('Unsupported filesystem entry in exported root')
+        result[relative] = record
     return result
 
 
@@ -371,8 +437,9 @@ def build(args):
     else:
         raise ValueError('Supply --root-tree, --root-archive, or both private --base and --state')
     sanitize(root)
-    copy_overlay(repo / 'reference/qualified-overlay/root-overlay', root)
-    copy_overlay(repo / 'firstboot/root-overlay', root)
+    overlays = [repo / 'reference/qualified-overlay/root-overlay', repo / 'firstboot/root-overlay']
+    for overlay in overlays:
+        copy_overlay(overlay, root)
     firstboot = json.loads((repo / 'firstboot/install-manifest.json').read_text())
     for record in firstboot['files']:
         require_hash(root / record['path'], record['sha256'])
@@ -385,6 +452,8 @@ def build(args):
     root_uuid = str(uuid.uuid4())
     root_sectors = args.root_mib * 2048
     adapt_helpers(root, root_uuid, root_sectors)
+    directory_policy = normalize_directories(root, overlays)
+    directory_count = validate_directories(root, directory_policy)
     executable_count = validate_executables(root)
     package_audit = audit(root)
     (output / 'package-integrity.json').write_text(json.dumps(package_audit, indent=2) + '\n')
@@ -403,7 +472,8 @@ def build(args):
     package_list = sorted(path.name for path in (root / 'var/lib/pacman/local').iterdir() if path.is_dir())
     (output / 'installed-packages.txt').write_text('\n'.join(package_list) + '\n')
     archive = output / 'pf1007l-sanitized-root.tar.xz'
-    run('tar', '--acls', '--xattrs', '--numeric-owner', '--use-compress-program=xz -T2 -3', '-cpf', archive, '-C', root, '.')
+    run('tar', '--acls', '--xattrs', '--numeric-owner', '--format=pax',
+        '--pax-option=delete=atime,delete=ctime', '--use-compress-program=xz -T2 -3', '-cpf', archive, '-C', root, '.')
     fat_image, root_image = work / 'boot.fat', work / 'root.ext4'
     new_file(fat_image, FAT_SECTORS * 512)
     new_file(root_image, root_sectors * 512)
@@ -443,6 +513,7 @@ def build(args):
         if stream.read(loader.stat().st_size) != loader.read_bytes():
             raise ValueError('SPL payload changed during assembly')
     with mounted(root_image, work / 'inspect-root', True) as inspected:
+        validate_directories(inspected, directory_policy)
         if inventory(inspected) != root_manifest:
             raise ValueError('Installed root differs from sanitized file manifest')
         if (inspected / 'var/lib/pf-firstboot/complete').exists():
@@ -456,11 +527,13 @@ def build(args):
         'image_bytes': image.stat().st_size, 'firstboot_grows_last_root_partition': True,
         'USB_serial_preserved': True, 'factory_passwords_locked': True, 'saved_networks': 0, 'ssh_disabled': True,
         'private_filesystem_blocks_copied': False, 'file_manifest_verified_readonly': True,
+        'directory_metadata_checked': directory_count, 'ownership_and_modes_verified_readonly': True,
+        'archive_access_change_timestamps_removed': True,
         'ARM_ELF_or_script_executables_validated': executable_count,
         'packaged_content_audit': package_audit['status'],
         'packaged_files_checked': package_audit['packaged_files_checked'],
         'assembled_partition_hashes': partition_pins,
-        'checks': ['e2fsck -fn', 'sfdisk --verify', 'SPL payload readback', 'assembled partition hashes', 'readonly root file inventory', 'xz -t'],
+        'checks': ['e2fsck -fn', 'sfdisk --verify', 'SPL payload readback', 'assembled partition hashes', 'readonly root content and ownership inventory', 'directory permissions', 'xz -t'],
         'files': {path.name: {'bytes': path.stat().st_size, 'sha256': file_hash(path)} for path in (image, Path(str(image) + '.xz'), archive)}}
     (output / 'image-manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))

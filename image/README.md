@@ -35,6 +35,19 @@ For an independent fresh userspace build, extract the official Arch Linux ARM ar
 
 The builder clears accounts' password hashes, home directories, logs, caches, saved networks, SSH host keys, private package-signing keys and machine identity. It applies the maintained overlays, checks installed package contents against their mtree hashes, checks ARM executable headers, provisions the portable storage guards, and writes fresh FAT and ext4 filesystems. The exported root archive contains this clean tree rather than blocks from private snapshots. Each build uses a new filesystem UUID; repeated builds preserve configuration rather than producing identical image bytes.
 
+Overlay installation reads file contents and applies declared file modes;
+it does not import Windows directory metadata. Managed system directories use
+`root:root 0755`, private state uses `root:root 0700`, and `tmp`/`var/tmp` use
+`root:root 1777`. The `diag` home retains its account ownership. Package and
+service directories outside that managed set retain their metadata, including
+Polkit's rules directory. Other world-writable directories cause a build failure.
+
+The filesystem inventory includes the root directory, every directory, regular
+file and symlink, with numeric ownership and modes. The assembled ext4
+filesystem must match the inventory when mounted read-only. Archive validation
+checks the same metadata and rejects owner names, access/change timestamps and
+invalid hardlink mappings. File modification times are retained.
+
 Package content checks are mandatory. An initial private seed had mismatched `glmark2`, `libjpeg-turbo` and TPM configuration files. These were restored from signed packages of the same installed versions; [repair-receipt](seed-repair-receipt.json) records archive hashes and the verified public build key. This repair changed the exported userspace. The working frame was unchanged. The cause of the seed mismatch remains unproven. Filesystem consistency alone does not prove package contents are correct.
 
 Outputs:
@@ -43,7 +56,8 @@ Outputs:
 - `pf1007l-sanitized-root.tar.xz`: clean rebuild input, with the same vendor payload review requirement.
 - `portable-profile/`: matching kernel/initramfs/DT/script bundle for this image's root UUID. A bundle made for another image UUID will reject this card.
 - `image-manifest.json`: asset hashes, geometry and validation status.
-- `root-file-manifest.json`, `installed-packages.txt`: packaged file hashes and package versions.
+- `root-file-manifest.json`: file hashes, types, symlink targets and numeric ownership/modes for all entries, including the root directory.
+- `installed-packages.txt`: package versions.
 
 Use a normal image writer such as Raspberry Pi Imager's custom-image option, or decompress and write the complete image to the intended SD card. Writing an image replaces the card's existing data. Do not copy `.img` into a FAT volume as an ordinary file. No factory Android/eMMC write is required.
 
@@ -55,6 +69,7 @@ python3 image/test_guard.py
 sudo python3 image/test_growth_loop.py
 sudo python3 image/test_sanitize.py
 python3 image/test_package_integrity.py
+sudo python3 image/test_metadata.py
 python3 image/verify_assets.py --dist /path/to/assets
 ```
 

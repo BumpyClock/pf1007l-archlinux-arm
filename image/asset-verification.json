@@ -2,6 +2,9 @@
   "result": "PASS",
   "all_asset_hashes_verified": true,
   "compressed_image_matches_raw_sha256": true,
+  "archive_metadata_entries_checked": 54680,
+  "numeric_archive_owners": true,
+  "archive_access_change_timestamps_removed": true,
   "image_status": "HOST_VERIFIED_NOT_HARDWARE_BOOTED",
   "hardware_boot_tested": false
 }

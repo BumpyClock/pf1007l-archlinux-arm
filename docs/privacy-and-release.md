@@ -17,6 +17,26 @@ blocks. Password fields are replaced with locked values; personal homes, logs,
 network state, SSH keys, machine IDs and private package keyring state are removed.
 First-time setup generates account credentials and package keyring state locally.
 
+An independent `muse exec` review using `muse-wonder-full-1.0` examined the
+tracked files, Git history, nested boot artifacts and draft assets. It found no
+confirmed personal-information leaks within its measured scope. Its ext4
+inspection was partly sampled, and sandbox restrictions prevented independent
+authenticated GitHub API checks. Its result is not proof of absence.
+
+That review also identified system directories with UID/GID 1000 and mode
+`0777` in the initial draft image. The overlay installer had copied Windows
+directory metadata into the root tree. The correction installs overlays with
+controlled metadata and verifies ownership and modes after assembly. The
+rebuild archive also omits PAX access/change timestamps. Those corrections
+require rebuilt assets; updating source files alone does not repair an image
+already downloaded.
+
+The rebuilt image passed full filesystem and archive metadata checks; see
+[asset verification](../image/asset-verification.json). The actual development
+credential and identity scan was repeated on its sanitized root tree; see
+[image privacy](verification/image-privacy.json). The independent Muse result
+describes the earlier draft, not this rebuild.
+
 ## Before making the repository public
 
 1. Review the tracked files and draft release assets separately. Git exclusions

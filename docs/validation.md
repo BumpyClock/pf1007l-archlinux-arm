@@ -33,6 +33,13 @@ checks establish properties of the assembled artifact. Mocked/PTY tests cover
 script behavior without modifying a user's accounts or storage. They do not
 replace a frame boot test.
 
+The corrected builder includes ownership and permissions for directories,
+files and symlinks in its inventory, including the filesystem root. It compares
+that inventory with the assembled ext4 filesystem mounted read-only. This
+closes the initial draft's directory-metadata gap; its regular-file byte hashes
+alone had passed while system directories were owned by UID/GID 1000 with
+mode `0777`.
+
 The original runtime update protocol was exercised on the development frame.
 The public tools retain length-framed transfers, remote SHA256 checks, immutable
 profile installation and explicit selection. The new card-layout guards and
